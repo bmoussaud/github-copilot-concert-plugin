@@ -1,0 +1,855 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#15211d">
+  <title>En attendant — Playlist anti-spoiler</title>
+  <style>
+    :root {
+      --green-ink: #123e2a;
+      --green-header: #15211d;
+      --green-primary: #58c98b;
+      --green-hover: #75d79f;
+      --green-border: #18804c;
+      --green-soft: #e8f7ed;
+      --green-surface: #f5fbf7;
+      color-scheme: light;
+      font: 16px/1.5 system-ui, sans-serif;
+      color: #16201d;
+      background: #f2f5f3;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header {
+      padding: 1rem max(1rem, calc((100% - 760px) / 2));
+      border-bottom: 4px solid var(--green-primary);
+      color: #fff;
+      background: var(--green-header);
+    }
+    main { max-width: 760px; margin: 1.5rem auto; padding: 0 1rem; }
+    .brand { display: flex; align-items: center; gap: .75rem; }
+    .brand-mark {
+      display: grid; width: 2.5rem; height: 2.5rem; place-items: center;
+      border-radius: .65rem; color: var(--green-header);
+      background: var(--green-primary); font-weight: 800;
+    }
+    .brand-subtitle { display: block; color: #c4d2cc; font-size: .82rem; }
+    .privacy-tag {
+      margin-left: auto; padding: .2rem .55rem; border: 1px solid #6b8b76;
+      border-radius: 2rem; color: #d7f3e2; font-size: .72rem; font-weight: 700;
+    }
+    .notice, section {
+      margin: 1rem 0; padding: 1rem; border: 1px solid #d5dfda;
+      border-radius: .8rem; background: #fff; box-shadow: 0 2px 8px #13231b0a;
+    }
+    .notice { border-left: 5px solid var(--green-primary); background: var(--green-surface); }
+    .muted { color: #5b6b64; }
+    .steps { display: flex; flex-wrap: wrap; gap: .5rem; padding: 0; list-style: none; }
+    .steps li {
+      padding: .25rem .75rem; border: 1px solid #d5dfda; border-radius: 2rem;
+      color: #55635d; background: #fafcfb;
+    }
+    .steps [aria-current="step"] {
+      border-color: var(--green-border); color: var(--green-ink);
+      background: var(--green-soft); font-weight: 700;
+    }
+    label { display: block; margin: .75rem 0 .25rem; font-weight: 650; }
+    input, select {
+      width: 100%; min-height: 44px; padding: .55rem .7rem;
+      border: 1px solid #bdcbc4; border-radius: .45rem;
+      color: inherit; background: #fff; font: inherit;
+    }
+    input[type="checkbox"] { width: 1.15rem; min-height: 1.15rem; accent-color: var(--green-border); }
+    button, .button-link {
+      display: inline-flex; min-height: 44px; align-items: center; justify-content: center;
+      margin: .3rem .4rem .3rem 0; padding: .5rem .9rem; border: 1px solid #bdcbc4;
+      border-radius: .45rem; color: inherit; background: #fff; font: inherit;
+      text-decoration: none; cursor: pointer;
+    }
+    button.primary, .button-link.primary {
+      border-color: var(--green-border); color: var(--green-header);
+      background: var(--green-primary); font-weight: 750;
+    }
+    button.primary:hover, .button-link.primary:hover { background: var(--green-hover); }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible {
+      outline: 3px solid #2457d6; outline-offset: 2px;
+    }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin: 1rem 0; }
+    .stat { padding: .7rem; border-radius: .6rem; background: #f4f8f5; }
+    .stat strong { display: block; color: var(--green-ink); font-size: 1.35rem; }
+    .stat span { color: #5b6b64; font-size: .8rem; }
+    .show-list { padding-left: 1.25rem; }
+    .show-list li { margin: .25rem 0; }
+    .song-row { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: .65rem; padding: .7rem 0; border-top: 1px solid #e0e7e3; }
+    .song-row.no-results { margin: .4rem 0; padding: .7rem; border: 2px solid #9a5700; border-radius: .45rem; background: #fff5e3; }
+    .no-results-message { color: #713e00; font-weight: 700; }
+    .song-row > input { margin-top: .2rem; }
+    .song-info { min-width: 0; }
+    .song-title { margin: 0; padding: 0; border: 0; background: transparent; font-weight: 700; text-align: left; justify-content: flex-start; }
+    .song-title:hover { text-decoration: underline; text-underline-offset: .2em; }
+    .song-edit { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: .35rem; }
+    .song-edit label { grid-column: 1 / -1; margin: 0; color: #5b6b64; font-size: .82rem; }
+    .search-icon { width: 44px; margin: 0; padding: .5rem; border-color: transparent; color: var(--green-ink); background: transparent; }
+    .search-icon:hover { background: var(--green-soft); }
+    .song-meta { margin: .15rem 0 .35rem; color: #5b6b64; font-size: .86rem; }
+    .version-picker { position: relative; }
+    .version-picker > summary, .version-unavailable {
+      display: flex; width: 100%; min-height: 44px; align-items: center; gap: .6rem;
+      margin: 0; padding: .55rem .7rem; border: 1px solid #bdcbc4; border-radius: .45rem;
+      color: inherit; background: #fff; text-align: left; cursor: pointer; list-style: none;
+    }
+    .version-picker > summary::-webkit-details-marker { display: none; }
+    .version-picker > summary::after { content: "▾"; margin-left: auto; }
+    .version-unavailable { cursor: not-allowed; }
+    .version-list {
+      position: absolute; z-index: 2; width: 100%; max-height: 20rem; overflow: auto;
+      margin: .2rem 0 0; padding: .25rem; border: 1px solid #bdcbc4; border-radius: .45rem;
+      background: #fff; box-shadow: 0 4px 12px #13231b24;
+    }
+    .version-list legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    .version-option { display: flex; align-items: center; gap: .6rem; margin: 0; padding: .45rem; border-radius: .35rem; font-weight: 400; cursor: pointer; }
+    .version-option:hover { background: var(--green-soft); }
+    .version-option input[type="radio"] { width: 1.15rem; min-height: 1.15rem; flex: 0 0 1.15rem; accent-color: var(--green-border); }
+    .version-artwork { width: 2.5rem; height: 2.5rem; flex: 0 0 2.5rem; border-radius: .3rem; object-fit: cover; background: var(--green-soft); }
+    .version-artwork-placeholder { display: grid; place-items: center; color: var(--green-ink); }
+    .version-label { min-width: 0; overflow-wrap: anywhere; }
+    .album-row { display: flex; align-items: center; gap: .75rem; margin: .75rem 0; }
+    .album-cover { width: 3.25rem; height: 3.25rem; flex: 0 0 3.25rem; border-radius: .4rem; object-fit: cover; background: var(--green-soft); }
+    .preview-track { display: flex; align-items: center; gap: .65rem; padding: .45rem 0; }
+    [hidden] { display: none !important; }
+    [role="status"] { min-height: 1.5rem; }
+    @media (max-width: 520px) { .stats { grid-template-columns: repeat(3, 1fr); } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">♫</span>
+      <div><strong>Setlist → Playlist</strong><span class="brand-subtitle">Préparer le concert, garder la surprise</span></div>
+      <span class="privacy-tag">LOCAL · SANS SPOILER</span>
+    </div>
+  </header>
+  <main>
+    <div class="notice" role="note">
+      <strong>Vos données Spotify restent dans cette interface locale.</strong>
+      Les titres ne sont jamais transmis à Copilot; l’ordre joué en concert n’est pas affiché.
+    </div>
+    <h1 tabindex="-1">En attendant <span id="artist-heading">votre artiste</span></h1>
+    <ol class="steps" aria-label="Étapes du parcours">
+      <li aria-current="step">1. Source</li>
+      <li>2. Connexion</li>
+      <li>3. Sélection</li>
+      <li>4. Aperçu</li>
+      <li>5. Confirmation</li>
+    </ol>
+
+    <section data-step="source">
+      <h2>Choisir la source setlist.fm</h2>
+      <p class="muted">Les morceaux des cinq concerts retenus sont dédoublonnés et affichés sans leur ordre de concert.</p>
+      <label for="artist-name">Rechercher un artiste</label>
+      <input id="artist-name" type="search" maxlength="200" autocomplete="off">
+      <button id="search-artists" type="button">Rechercher</button>
+      <p id="artist-search-status" role="status" aria-live="polite"></p>
+      <div id="artist-results" hidden>
+        <label for="artist-choice">Choisir un artiste</label>
+        <select id="artist-choice"></select>
+      </div>
+      <button class="primary" id="load-source" disabled>Charger les setlists récentes</button>
+      <div id="source-result" aria-live="polite"></div>
+    </section>
+
+    <section data-step="connect" hidden>
+      <h2>Connexion Spotify</h2>
+      <p>Spotify est utilisé ici uniquement pour rechercher des versions et enregistrer la playlist privée choisie.</p>
+      <p class="muted">Autorisation demandée : consulter vos playlists privées et en créer ou modifier une privée.</p>
+      <a class="button-link primary" id="connect-link" target="_blank" rel="noopener noreferrer" hidden>Se connecter à Spotify</a>
+      <p id="connect-status" role="status" aria-live="polite"></p>
+      <button data-back="source">Retour</button>
+      <button class="primary" id="continue-to-selection" disabled>Continuer</button>
+    </section>
+
+    <section data-step="selection" hidden>
+      <h2>Vérifier les versions Spotify</h2>
+      <p class="muted">La proposition la plus fréquente dans cette préparation est présélectionnée ; en cas d’égalité, la première proposée est retenue. Vérifiez les versions : la version studio d’origine n’est pas garantie. Décochez les titres à exclure. Les reprises seront placées à la fin.</p>
+      <p id="search-status" role="status" aria-live="polite"></p>
+      <div id="song-choices"></div>
+      <button data-back="connect">Retour</button>
+      <button class="primary" id="continue-to-preview" disabled>Voir l’aperçu</button>
+    </section>
+
+    <section data-step="preview" hidden>
+      <h2>Aperçu trié par albums</h2>
+      <p class="muted">Albums du plus récent au plus ancien; reprises à la fin. Aucun classement du concert n’est utilisé.</p>
+      <div id="playlist-target"></div>
+      <div id="playlist-preview"></div>
+      <button data-back="selection">Retour à la sélection</button>
+      <button class="primary" id="continue-to-confirm" disabled>Continuer vers la confirmation</button>
+    </section>
+
+    <section data-step="confirm" hidden>
+      <h2 id="confirm-heading">Confirmer</h2>
+      <div id="confirm-summary"></div>
+      <p id="confirm-warning" class="notice" role="note"></p>
+      <button data-back="preview">Retour à l’aperçu</button>
+      <button class="primary" id="save-playlist">Confirmer et enregistrer</button>
+      <p id="save-status" role="status" aria-live="polite"></p>
+      <a id="playlist-link" target="_blank" rel="noopener noreferrer" hidden>Ouvrir la playlist dans Spotify</a>
+    </section>
+  </main>
+
+  <script>
+    const state = {
+      source: null, choices: new Map(), playlists: [], connected: false, saving: false,
+      playlistOrderStatus: "idle", playlistOrderError: "", artists: [], selectedArtist: null, artistSearchVersion: 0,
+    };
+    const sections = [...document.querySelectorAll("[data-step]")];
+    const indicators = [...document.querySelectorAll(".steps li")];
+    const stepNames = ["source", "connect", "selection", "preview", "confirm"];
+    const $ = (selector) => document.querySelector(selector);
+    const text = (tag, value, className) => {
+      const element = document.createElement(tag);
+      if (className) element.className = className;
+      element.textContent = value;
+      return element;
+    };
+
+    function showStep(name) {
+      sections.forEach((section) => { section.hidden = section.dataset.step !== name; });
+      indicators.forEach((indicator, index) => {
+        if (stepNames[index] === name) indicator.setAttribute("aria-current", "step");
+        else indicator.removeAttribute("aria-current");
+      });
+      $("h1").focus();
+    }
+
+    async function request(url, options = {}) {
+      const response = await fetch(url, {
+        ...options,
+        headers: { ...(options.body ? { "Content-Type": "application/json" } : {}), ...options.headers },
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error ?? `Erreur HTTP ${response.status}`);
+      return body;
+    }
+
+    function showError(element, error) {
+      element.textContent = error instanceof Error ? error.message : "Une erreur est survenue.";
+    }
+
+    function makeStat(value, label) {
+      const item = text("div", "", "stat");
+      item.append(text("strong", String(value)), text("span", label));
+      return item;
+    }
+
+    function renderSource(source, criteria) {
+      const root = $("#source-result");
+      root.replaceChildren();
+      const stats = text("div", "", "stats");
+      stats.append(
+        makeStat(source.source.count, source.source.count === 1 ? "concert" : "concerts"),
+        makeStat(source.songs.length, source.songs.length === 1 ? "titre distinct" : "titres distincts"),
+        makeStat(source.songs.filter((song) => song.cover).length, "reprises signalées"),
+      );
+      root.append(text("p", `${source.source.method} · ${source.source.period}`), stats);
+      const list = text("ul", "", "show-list");
+      for (const show of source.source.shows) {
+        list.append(text("li", `${show.date} · ${show.venue} · ${show.entries} entrées exploitables`));
+      }
+      root.append(list, text("p", "Les liens vers les setlists détaillées sont masqués pour préserver la surprise.", "muted"));
+      if (source.needsOlderConsent || source.needsIncompleteConsent) {
+        const message = source.needsOlderConsent
+          ? "Moins de cinq concerts renseignés ont été trouvés sur les douze derniers mois. Voulez-vous chercher des concerts plus anciens ?"
+          : "Même après élargissement, moins de cinq concerts renseignés sont disponibles.";
+        root.append(text("p", message));
+        if (source.needsOlderConsent) {
+          const expand = text("button", "Chercher des concerts plus anciens", "primary");
+          expand.addEventListener("click", () => loadSource({ ...criteria, allowOlder: true }));
+          root.append(expand);
+        }
+        if (source.source.count) {
+          const continuePartial = text("button", `Continuer avec ${source.source.count} concert(s)`);
+          continuePartial.addEventListener("click", () => loadSource({ ...criteria, acceptIncomplete: true }));
+          root.append(continuePartial);
+        }
+        return;
+      }
+      const next = text("button", "Continuer vers Spotify", "primary");
+      next.addEventListener("click", beginConnection);
+      root.append(next);
+    }
+
+    async function beginConnection() {
+      $("#connect-status").textContent = "";
+      showStep("connect");
+      try {
+        const status = await request("/api/status");
+        state.connected = status.spotifyConnected;
+        if (!status.spotifyConfigured) {
+          $("#connect-status").textContent = "Client ID Spotify indisponible dans cette session. Rechargez Copilot après avoir défini SPOTIFY_CLIENT_ID.";
+          return;
+        }
+        if (state.connected) {
+          $("#connect-status").textContent = "Spotify est connecté pour cette session.";
+          await loadPlaylists();
+          $("#continue-to-selection").disabled = false;
+          return;
+        }
+        const { authorizationUrl } = await request("/api/spotify/auth/start", { method: "POST", body: "{}" });
+        const link = $("#connect-link");
+        link.href = authorizationUrl;
+        link.hidden = false;
+        $("#connect-status").textContent = "Ouvrez Spotify, autorisez l’accès, puis revenez ici.";
+        pollSpotifyConnection();
+      } catch (error) {
+        showError($("#connect-status"), error);
+      }
+    }
+
+    async function pollSpotifyConnection() {
+      const started = Date.now();
+      while (Date.now() - started < 180_000 && !state.connected) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        try {
+          const result = await request("/api/spotify/auth/status");
+          if (result.connected) {
+            state.connected = true;
+            $("#connect-status").textContent = "Spotify est connecté pour cette session.";
+            $("#connect-link").hidden = true;
+            await loadPlaylists();
+            $("#continue-to-selection").disabled = false;
+            return;
+          }
+        } catch (error) {
+          showError($("#connect-status"), error);
+          return;
+        }
+      }
+      if (!state.connected) $("#connect-status").textContent = "La connexion n’a pas été détectée. Réessayez si nécessaire.";
+    }
+
+    async function loadPlaylists() {
+      const result = await request("/api/spotify/playlists");
+      state.playlists = result.playlists;
+      void loadPlaylistActivity();
+    }
+
+    async function loadPlaylistActivity() {
+      if (state.playlistOrderStatus === "loading") return;
+      state.playlistOrderStatus = "loading";
+      state.playlistOrderError = "";
+      if ($("#target-playlist")) renderPlaylistTarget();
+      try {
+        const result = await request("/api/spotify/playlists/activity");
+        const existing = new Map(state.playlists.map((playlist) => [playlist.id, playlist]));
+        const ordered = result.playlists.map((playlist) => {
+          const previous = existing.get(playlist.id);
+          existing.delete(playlist.id);
+          return previous ? { ...previous, lastAddedAt: playlist.lastAddedAt } : playlist;
+        });
+        // Keep a selected target even if Spotify's list changes during sorting.
+        state.playlists = [...ordered, ...[...existing.values()].map((playlist) => ({ ...playlist, lastAddedAt: null }))];
+        state.playlistOrderStatus = "ready";
+      } catch (error) {
+        state.playlistOrderStatus = "error";
+        state.playlistOrderError = error instanceof Error ? error.message : "Erreur inattendue.";
+      }
+      if ($("#target-playlist")) renderPlaylistTarget();
+    }
+
+    function countProposals(entries) {
+      const frequencies = new Map();
+      for (const entry of entries) {
+        if (entry.error) continue;
+        for (const uri of new Set(entry.matches.map((track) => track.uri))) {
+          frequencies.set(uri, (frequencies.get(uri) ?? 0) + 1);
+        }
+      }
+      return frequencies;
+    }
+
+    function selectProposal(entry, frequencies) {
+      if (entry.error) return null;
+      if (entry.manuallyChosen) {
+        return entry.matches.find((track) => track.id === entry.track?.id) ?? null;
+      }
+      return entry.matches.reduce((best, track) =>
+        !best || (frequencies.get(track.uri) ?? 0) > (frequencies.get(best.uri) ?? 0) ? track : best, null);
+    }
+
+    function normalizeSearchValue(value) {
+      return value.normalize("NFKD").replace(/\p{Diacritic}/gu, "").toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+    }
+
+    async function searchSong(song, title = song.title) {
+      const search = async (queryTitle) => {
+        const result = await request("/api/spotify/search", {
+          method: "POST",
+          body: JSON.stringify({ title: queryTitle, artist: song.artist }),
+        });
+        return result.tracks;
+      };
+      const tracks = await search(title);
+      if (tracks.length) return tracks;
+      const withoutArticle = title.replace(/^(?:the|a|an)\s+/i, "").trim();
+      if (!withoutArticle || withoutArticle === title) return tracks;
+      const alternatives = await search(withoutArticle);
+      const expectedTitle = normalizeSearchValue(withoutArticle);
+      const expectedArtist = normalizeSearchValue(song.artist);
+      return alternatives.filter((track) =>
+        normalizeSearchValue(track.title).replace(/^(?:the|a|an)\s+/, "") === expectedTitle
+        && track.artists.some((artist) => normalizeSearchValue(artist) === expectedArtist),
+      );
+    }
+
+    function renderChoiceRows(focusId) {
+      const root = $("#song-choices");
+      const frequencies = countProposals(state.choices.values());
+      const rows = state.source.songs.map((song) => {
+        const entry = state.choices.get(song.id);
+        if (!entry.searching) entry.track = selectProposal(entry, frequencies);
+        return { song, row: makeChoiceRow(song, entry) };
+      });
+      root.replaceChildren(...rows.map(({ row }) => row));
+      if (focusId) {
+        const selector = state.choices.get(focusId).editing ? 'input[type="text"]' : ".song-title";
+        rows.find(({ song }) => song.id === focusId)?.row.querySelector(selector)?.focus();
+      }
+      updateSelectionState();
+    }
+
+    async function researchSong(song, entry, value) {
+      if (entry.searching) return;
+      entry.editing = true;
+      const title = value.trim();
+      if (!title || title.length > 200) {
+        entry.queryError = "Saisissez un titre de 1 à 200 caractères.";
+        renderChoiceRows(song.id);
+        return;
+      }
+      entry.queryTitle = title;
+      entry.queryDraft = value;
+      delete entry.queryError;
+      entry.searching = true;
+      renderChoiceRows();
+      try {
+        entry.matches = await searchSong(song, title);
+        entry.manuallyChosen = false;
+        entry.editing = entry.matches.length === 0;
+        delete entry.error;
+      } catch (error) {
+        entry.matches = [];
+        entry.error = error instanceof Error ? error.message : "Recherche impossible.";
+      } finally {
+        entry.searching = false;
+        renderChoiceRows(song.id);
+      }
+    }
+
+    async function renderChoices() {
+      const root = $("#song-choices");
+      root.replaceChildren();
+      $("#continue-to-preview").disabled = true;
+      $("#search-status").textContent = `Recherche dans Spotify (0/${state.source.songs.length})…`;
+      let completed = 0;
+      let cursor = 0;
+      const workers = Array.from({ length: Math.min(3, state.source.songs.length) }, async () => {
+        while (cursor < state.source.songs.length) {
+          const song = state.source.songs[cursor++];
+          const entry = state.choices.get(song.id) ?? { include: true, track: null, matches: [] };
+          try {
+            entry.matches = await searchSong(song, entry.queryTitle ?? song.title);
+            delete entry.error;
+            state.choices.set(song.id, entry);
+          } catch (error) {
+            entry.matches = [];
+            entry.error = error instanceof Error ? error.message : "Recherche impossible.";
+            state.choices.set(song.id, entry);
+          }
+          completed += 1;
+          $("#search-status").textContent = `Recherche dans Spotify (${completed}/${state.source.songs.length})…`;
+        }
+      });
+      await Promise.all(workers);
+      renderChoiceRows();
+      $("#search-status").textContent = "Choisissez une version ou décochez les titres à exclure.";
+    }
+
+    function makeChoiceRow(song, entry) {
+      const row = text("div", "", "song-row");
+      if (!entry.searching && !entry.error && !entry.matches.length) row.classList.add("no-results");
+      const include = document.createElement("input");
+      include.type = "checkbox";
+      include.checked = entry.include;
+      include.disabled = Boolean(entry.searching);
+      include.setAttribute("aria-label", `Inclure ${song.title}`);
+      const info = text("div", "", "song-info");
+      const title = text("button", entry.queryTitle ?? song.title, "song-title");
+      title.type = "button";
+      title.hidden = Boolean(entry.editing);
+      title.setAttribute("aria-label", `Modifier le titre recherché pour ${song.title}`);
+      info.append(title);
+      const form = document.createElement("form");
+      form.className = "song-edit";
+      form.hidden = !entry.editing;
+      const label = text("label", "Modifier le titre recherché");
+      const query = document.createElement("input");
+      query.type = "text";
+      query.id = `query-${encodeURIComponent(song.id)}`;
+      label.htmlFor = query.id;
+      query.value = entry.queryDraft ?? entry.queryTitle ?? song.title;
+      query.maxLength = 200;
+      query.disabled = Boolean(entry.searching);
+      query.setAttribute("aria-label", `Titre recherché pour ${song.title}`);
+      query.addEventListener("input", () => { entry.queryDraft = query.value; });
+      const search = text("button", "", "search-icon");
+      search.type = "submit";
+      search.disabled = Boolean(entry.searching);
+      search.setAttribute("aria-label", "Rechercher sur Spotify");
+      search.title = "Rechercher sur Spotify";
+      search.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><circle cx="10" cy="10" r="6"></circle><path d="m15 15 5 5"></path></svg>';
+      form.append(label, query, search);
+      title.addEventListener("click", () => {
+        entry.editing = true;
+        title.hidden = true;
+        form.hidden = false;
+        query.focus();
+      });
+      query.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape" || entry.searching) return;
+        event.preventDefault();
+        entry.editing = false;
+        entry.queryDraft = entry.queryTitle ?? song.title;
+        delete entry.queryError;
+        renderChoiceRows(song.id);
+      });
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        void researchSong(song, entry, query.value);
+      });
+      info.append(form, text("p", `${song.artist}${song.cover ? " · reprise" : ""}`, "song-meta"));
+      if (entry.queryError) info.append(text("p", entry.queryError, "no-results-message"));
+      if (entry.searching) info.append(text("p", "Recherche Spotify en cours…", "muted"));
+      else if (entry.error) info.append(text("p", entry.error, "muted"));
+      else if (!entry.matches.length) info.append(text("p", "Aucun résultat Spotify : décochez ce titre pour continuer.", "no-results-message"));
+      include.addEventListener("change", () => { entry.include = include.checked; updateSelectionState(); });
+      if (entry.searching || !entry.matches.length) {
+        const unavailable = text("button", entry.searching ? "Recherche Spotify en cours…" : entry.error ? "Recherche indisponible" : "Aucune version trouvée", "version-unavailable");
+        unavailable.type = "button";
+        unavailable.disabled = true;
+        info.append(unavailable);
+      } else {
+        const picker = document.createElement("details");
+        picker.className = "version-picker";
+        const summary = document.createElement("summary");
+        const list = document.createElement("fieldset");
+        list.className = "version-list";
+        list.append(text("legend", `Versions Spotify pour ${song.title}`));
+        const trackLabel = (track) => track
+          ? `${track.title} — ${track.artists.join(", ")} · ${track.album} (${track.releaseDate.slice(0, 4) || "année inconnue"})`
+          : "Choisir une version…";
+        const artwork = (track) => {
+          const placeholder = () => {
+            const element = text("span", "♫", "version-artwork version-artwork-placeholder");
+            element.setAttribute("aria-hidden", "true");
+            return element;
+          };
+          if (!track?.image) return placeholder();
+          const image = document.createElement("img");
+          image.className = "version-artwork";
+          image.src = track.image;
+          image.alt = "";
+          image.referrerPolicy = "no-referrer";
+          image.addEventListener("error", () => image.replaceWith(placeholder()));
+          return image;
+        };
+        const updateSummary = () => {
+          const label = trackLabel(entry.track);
+          summary.setAttribute("aria-label", `Version Spotify pour ${song.title} : ${label}`);
+          summary.replaceChildren(artwork(entry.track), text("span", label, "version-label"));
+        };
+        updateSummary();
+        [null, ...entry.matches].forEach((track) => {
+          const label = text("label", "", "version-option");
+          const radio = document.createElement("input");
+          radio.type = "radio";
+          radio.name = `version-${encodeURIComponent(song.id)}`;
+          radio.checked = track ? entry.track?.id === track.id : !entry.track;
+          radio.addEventListener("change", () => {
+            entry.track = track;
+            entry.manuallyChosen = true;
+            updateSummary();
+            updateSelectionState();
+          });
+          radio.addEventListener("click", () => {
+            picker.open = false;
+            summary.focus();
+          });
+          label.append(radio, artwork(track), text("span", trackLabel(track), "version-label"));
+          list.append(label);
+        });
+        picker.addEventListener("keydown", (event) => {
+          if (event.key === "Escape" && picker.open) {
+            event.preventDefault();
+            picker.open = false;
+            summary.focus();
+          }
+        });
+        picker.append(summary, list);
+        info.append(picker);
+      }
+      row.append(include, info);
+      return row;
+    }
+
+    function selectedTracks() {
+      return state.source.songs
+        .map((song) => ({ song, ...state.choices.get(song.id) }))
+        .filter((item) => item.include && item.track)
+        .sort((a, b) => {
+          if (a.song.cover !== b.song.cover) return a.song.cover ? 1 : -1;
+          return b.track.releaseDate.localeCompare(a.track.releaseDate)
+            || a.track.album.localeCompare(b.track.album)
+            || a.track.disc - b.track.disc
+            || a.track.track - b.track.track;
+        });
+    }
+
+    function updateSelectionState() {
+      const chosen = selectedTracks();
+      const unresolved = state.source.songs.some((song) => {
+        const entry = state.choices.get(song.id);
+        return entry.searching || (entry.include && !entry.track);
+      });
+      $("#continue-to-preview").disabled = !chosen.length || unresolved;
+    }
+
+    function renderPreview() {
+      const tracks = selectedTracks();
+      const root = $("#playlist-preview");
+      root.replaceChildren();
+      let currentAlbum = "";
+      for (const item of tracks) {
+        const albumKey = `${item.track.album}|${item.track.releaseDate}`;
+        if (albumKey !== currentAlbum) {
+          currentAlbum = albumKey;
+          const album = text("div", "", "album-row");
+          if (item.track.image) {
+            const image = document.createElement("img");
+            image.className = "album-cover";
+            image.src = item.track.image;
+            image.alt = "";
+            image.referrerPolicy = "no-referrer";
+            album.append(image);
+          }
+          album.append(text("h3", `${item.track.album} · ${item.track.releaseDate || "année inconnue"}${item.song.cover ? " · reprises" : ""}`));
+          root.append(album);
+        }
+        const row = text("div", "", "preview-track");
+        row.append(text("span", `${item.track.title} — ${item.track.artists.join(", ")}`));
+        root.append(row);
+      }
+      renderPlaylistTarget();
+      $("#continue-to-confirm").disabled = !tracks.length;
+    }
+
+    function renderPlaylistTarget() {
+      const root = $("#playlist-target");
+      const previous = root.querySelector("select")?.value ?? "";
+      const label = text("label", "Playlist Spotify privée");
+      label.htmlFor = "target-playlist";
+      root.replaceChildren(label);
+      const select = document.createElement("select");
+      select.id = "target-playlist";
+      select.append(new Option("Créer une nouvelle playlist privée", ""));
+      state.playlists.forEach((playlist) => {
+        const unknown = state.playlistOrderStatus === "ready" && playlist.lastAddedAt === null ? " · date inconnue" : "";
+        select.append(new Option(`Remplacer « ${playlist.name} » (${playlist.tracks} titres)${unknown}`, playlist.id));
+      });
+      if (state.playlists.some((playlist) => playlist.id === previous)) select.value = previous;
+      select.addEventListener("change", () => renderConfirmation());
+      root.append(select);
+      if (state.playlistOrderStatus !== "idle") {
+        const message = state.playlistOrderStatus === "loading"
+          ? "Classement des playlists selon le dernier titre ajouté en cours…"
+          : state.playlistOrderStatus === "ready"
+            ? "Playlists classées selon le dernier titre ajouté ; dates inconnues en dernier."
+            : `Tri des playlists indisponible : ${state.playlistOrderError} Leur ordre peut être incomplet.`;
+        const status = text("p", message, "muted");
+        status.setAttribute("role", "status");
+        root.append(status);
+      }
+      if (state.playlistOrderStatus === "error") {
+        const retry = text("button", "Réessayer le tri");
+        retry.type = "button";
+        retry.addEventListener("click", () => { void loadPlaylistActivity(); });
+        root.append(retry);
+      }
+    }
+
+    function renderConfirmation() {
+      const selection = $("#target-playlist");
+      const chosen = state.playlists.find((playlist) => playlist.id === selection?.value);
+      const name = chosen?.name ?? `En attendant ${state.source.artist}`;
+      const tracks = selectedTracks();
+      $("#confirm-heading").textContent = chosen ? "Remplacer cette playlist ?" : "Créer une playlist privée ?";
+      $("#confirm-summary").textContent = `${tracks.length} titres sélectionnés pour « ${name} ».`;
+      $("#confirm-warning").textContent = chosen
+        ? "Cette action remplacera tous les titres de cette playlist privée; seuls les titres de l’aperçu confirmé resteront."
+        : "La nouvelle playlist sera privée. Rien ne sera écrit sans ce clic de confirmation.";
+      if (!state.saving) {
+        $("#save-playlist").disabled = false;
+        $("#save-status").textContent = "";
+        $("#playlist-link").hidden = true;
+      }
+    }
+
+    async function savePlaylist() {
+      if (state.saving) return;
+      const button = $("#save-playlist");
+      const back = document.querySelector('[data-step="confirm"] [data-back]');
+      state.saving = true;
+      button.disabled = true;
+      back.disabled = true;
+      let saved = false;
+      $("#save-status").textContent = "Enregistrement dans Spotify…";
+      $("#playlist-link").hidden = true;
+      try {
+        const selection = $("#target-playlist");
+        const result = await request("/api/spotify/playlist", {
+          method: "POST",
+          body: JSON.stringify({
+            name: `En attendant ${state.source.artist}`,
+            playlistId: selection.value,
+            tracks: selectedTracks().map((item) => item.track.uri),
+          }),
+        });
+        $("#save-status").textContent = "Playlist enregistrée.";
+        const link = $("#playlist-link");
+        link.href = result.url;
+        link.hidden = false;
+        saved = true;
+      } catch (error) {
+        showError($("#save-status"), error);
+      } finally {
+        state.saving = false;
+        back.disabled = false;
+        if (!saved) button.disabled = false;
+      }
+    }
+
+    async function loadSource(criteria) {
+      const version = state.artistSearchVersion;
+      const button = $("#load-source");
+      button.disabled = true;
+      $("#source-result").replaceChildren(text("p", "Chargement des setlists…", "muted"));
+      state.source = null;
+      state.choices.clear();
+      try {
+        const result = await request("/api/setlists", {
+          method: "POST",
+          body: JSON.stringify(criteria),
+        });
+        if (version !== state.artistSearchVersion) return;
+        state.source = result;
+        state.choices = new Map(result.songs.map((song) => [song.id, { include: true, track: null, matches: [] }]));
+        $("#artist-heading").textContent = result.artist;
+        renderSource(result, criteria);
+      } catch (error) {
+        if (version === state.artistSearchVersion) showError($("#source-result"), error);
+      } finally {
+        if (version === state.artistSearchVersion) button.disabled = !state.selectedArtist;
+      }
+    }
+
+    function clearSource() {
+      state.source = null;
+      state.choices.clear();
+      $("#source-result").replaceChildren();
+    }
+
+    async function findArtists() {
+      const version = ++state.artistSearchVersion;
+      const name = $("#artist-name").value.trim();
+      clearSource();
+      state.selectedArtist = null;
+      state.artists = [];
+      $("#load-source").disabled = true;
+      $("#artist-results").hidden = true;
+      const status = $("#artist-search-status");
+      if (!name || name.length > 200) {
+        status.textContent = "Saisissez un nom d’artiste de 1 à 200 caractères.";
+        return;
+      }
+      status.textContent = "Recherche des artistes…";
+      try {
+        const result = await request("/api/artists/search", {
+          method: "POST", body: JSON.stringify({ name }),
+        });
+        if (version !== state.artistSearchVersion) return;
+        state.artists = result.artists;
+        if (!result.artists.length) {
+          status.textContent = "Aucun artiste trouvé. Modifiez la recherche.";
+          return;
+        }
+        const select = $("#artist-choice");
+        select.replaceChildren(new Option("Sélectionnez un artiste", ""));
+        const labels = result.artists.map((artist) => `${artist.name}${artist.disambiguation ? ` · ${artist.disambiguation}` : ""}`);
+        result.artists.forEach((artist, index) => {
+          const label = labels.filter((value) => value === labels[index]).length > 1
+            ? `${labels[index]} · ${artist.mbid}` : labels[index];
+          select.append(new Option(label, artist.mbid));
+        });
+        $("#artist-results").hidden = false;
+        status.textContent = result.total > result.artists.length
+          ? `${result.artists.length} premiers résultats sur ${result.total}. Précisez la recherche si nécessaire.`
+          : `${result.artists.length} artiste(s) trouvé(s). Choisissez-en un.`;
+      } catch (error) {
+        if (version === state.artistSearchVersion) showError(status, error);
+      }
+    }
+
+    $("#artist-name").addEventListener("input", () => {
+      state.artistSearchVersion++;
+      clearSource();
+      state.selectedArtist = null;
+      state.artists = [];
+      $("#artist-results").hidden = true;
+      $("#artist-search-status").textContent = "";
+      $("#load-source").disabled = true;
+    });
+    $("#artist-name").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") { event.preventDefault(); void findArtists(); }
+    });
+    $("#search-artists").addEventListener("click", () => { void findArtists(); });
+    $("#artist-choice").addEventListener("change", (event) => {
+      state.artistSearchVersion++;
+      clearSource();
+      state.selectedArtist = state.artists.find((artist) => artist.mbid === event.target.value) ?? null;
+      $("#load-source").disabled = !state.selectedArtist;
+    });
+    $("#load-source").addEventListener("click", () => {
+      if (state.selectedArtist) void loadSource({
+        artistMbid: state.selectedArtist.mbid,
+        artistName: state.selectedArtist.name,
+      });
+    });
+
+    $("#continue-to-selection").addEventListener("click", async () => {
+      if (!state.connected) return;
+      showStep("selection");
+      await renderChoices();
+    });
+    $("#continue-to-preview").addEventListener("click", () => { renderPreview(); showStep("preview"); });
+    $("#continue-to-confirm").addEventListener("click", () => { renderConfirmation(); showStep("confirm"); });
+    $("#save-playlist").addEventListener("click", savePlaylist);
+    document.querySelectorAll("[data-back]").forEach((button) => {
+      button.addEventListener("click", () => showStep(button.dataset.back));
+    });
+  </script>
+</body>
+</html>
