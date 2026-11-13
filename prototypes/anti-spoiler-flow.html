@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prototype — Playlist anti-spoiler</title>
+  <style>
+    :root {
+      --green-ink: #123e2a;
+      --green-header: #15211d;
+      --green-primary: #58c98b;
+      --green-hover: #75d79f;
+      --green-border: #18804c;
+      --green-soft: #e8f7ed;
+      --green-surface: #f5fbf7;
+      color-scheme: light;
+      font: 16px/1.5 system-ui, sans-serif;
+      color: #16201d;
+      background: #f2f5f3;
+    }
+
+    * { box-sizing: border-box; }
+
+    body { margin: 0; }
+
+    header {
+      padding: 1rem max(1rem, calc((100% - 760px) / 2));
+      border-bottom: 4px solid var(--green-primary);
+      color: #fff;
+      background: var(--green-header);
+    }
+
+    main { max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
+
+    .notice, .card {
+      border: 1px solid #d5dfda;
+      border-radius: 0.8rem;
+      background: #fff;
+      padding: 1rem;
+      margin: 1rem 0;
+      box-shadow: 0 2px 8px #13231b0a;
+    }
+
+    .notice { border-left: 5px solid var(--green-primary); background: var(--green-surface); }
+
+    .muted { color: #5b6b64; }
+
+    .brand { display: flex; align-items: center; gap: 0.75rem; }
+    .brand-mark { display: grid; width: 2.5rem; height: 2.5rem; place-items: center; border-radius: 0.65rem; color: var(--green-header); background: var(--green-primary); font-weight: 800; }
+    .brand-subtitle { display: block; color: #c4d2cc; font-size: 0.82rem; }
+    .demo-tag, .source-tag, .spotify-tag { display: inline-block; padding: 0.2rem 0.55rem; border-radius: 1rem; font-size: 0.72rem; font-weight: 750; letter-spacing: 0.04em; }
+    .demo-tag { margin-left: auto; color: #f5e4ad; border: 1px solid #8a7847; }
+    .source-tag, .spotify-tag { color: var(--green-ink); background: var(--green-soft); }
+    .source-heading { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+    details { margin-top: 0.75rem; border-top: 1px solid #e0e7e3; padding-top: 0.75rem; }
+    summary { cursor: pointer; font-weight: 650; }
+    .event-list { display: grid; gap: 0.45rem; padding-left: 1.2rem; }
+    .event-list li { padding-left: 0.2rem; }
+    .event-list time { font-weight: 650; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin: 1rem 0; }
+    .stat { padding: 0.7rem; border-radius: 0.6rem; background: #f4f8f5; }
+    .stat strong { display: block; font-size: 1.35rem; color: var(--green-ink); }
+    .stat span { color: #5b6b64; font-size: 0.78rem; }
+
+    .steps {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0;
+      list-style: none;
+    }
+
+    .steps li {
+      border: 1px solid #d5dfda;
+      border-radius: 2rem;
+      padding: 0.25rem 0.75rem;
+      color: #55635d;
+      background: #fafcfb;
+    }
+
+    .steps [aria-current="step"] { border-color: var(--green-border); background: var(--green-soft); color: var(--green-ink); font-weight: 700; }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .album { display: flex; align-items: flex-start; gap: 0.8rem; border: 1px solid #e0e7e3; border-radius: 0.65rem; margin-top: 0.75rem; padding: 0.75rem; }
+    .album-art { flex: 0 0 3.25rem; height: 3.25rem; border-radius: 0.45rem; background: linear-gradient(140deg, var(--green-ink) 0 40%, var(--green-primary) 40% 62%, var(--green-soft) 62%); }
+    .album:nth-of-type(2) .album-art { background: linear-gradient(40deg, var(--green-soft) 0 28%, var(--green-primary) 28% 58%, var(--green-ink) 58%); }
+
+    button {
+      min-height: 44px;
+      margin: 0.25rem 0.5rem 0.25rem 0;
+      padding: 0.5rem 0.9rem;
+      border: 1px solid #bdcbc4;
+      border-radius: 0.35rem;
+      background: #fff;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button:hover { background: #eee; }
+    button:focus-visible { outline: 3px solid #2457d6; outline-offset: 2px; }
+    button.primary { color: var(--green-header); border-color: var(--green-border); background: var(--green-primary); font-weight: 750; }
+    button.primary:hover { background: var(--green-hover); }
+
+    [hidden] { display: none !important; }
+
+    #status { min-height: 1.5rem; }
+
+    @media (max-width: 520px) {
+      .row { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">♫</span>
+      <div><strong>Setlist → Playlist</strong><span class="brand-subtitle">Préparer le concert, garder la surprise</span></div>
+      <span class="demo-tag">MAQUETTE</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="notice" role="note">
+      <strong>Maquette seulement.</strong>
+      Aucune connexion Spotify, requête Spotify, ni modification de playlist n’est effectuée.
+      L’ordre des morceaux joués en concert n’est jamais affiché.
+    </div>
+
+    <h1 tabindex="-1">En attendant Ghinzu</h1>
+    <ol class="steps" aria-label="Étapes">
+      <li aria-current="step">1. Source</li>
+      <li>2. Spotify</li>
+      <li>3. Aperçu</li>
+      <li>4. Confirmation</li>
+    </ol>
+
+    <section class="card" data-step="source">
+      <div class="source-heading"><h2>Source des morceaux</h2><span class="source-tag">SETLIST.FM · TEST DU 13/11/2026</span></div>
+      <p>Les cinq setlists récentes de la tournée.</p>
+      <div class="stats" aria-label="Résumé de la source">
+        <div class="stat"><strong>5</strong><span>concerts distincts</span></div>
+        <div class="stat"><strong>17</strong><span>titres distincts</span></div>
+        <div class="stat"><strong>0</strong><span>reprise signalée</span></div>
+      </div>
+      <p class="muted">Échantillon : 12 derniers mois · Les 17 titres apparaissent dans les cinq setlists. Aucun ordre de concert n’est disponible dans cet écran.</p>
+      <details>
+        <summary>Voir les concerts pris en compte</summary>
+        <p>W.O.W.A Tour · 18 entrées listées par concert, 17 titres distincts après dédoublonnage.</p>
+        <ul class="event-list">
+          <li><time datetime="2026-10-29">29 oct. 2026</time> · Vorst Nationaal / Forest National</li>
+          <li><time datetime="2026-10-28">28 oct. 2026</time> · Les Docks</li>
+          <li><time datetime="2026-10-23">23 oct. 2026</time> · L’Aéronef</li>
+          <li><time datetime="2026-10-22">22 oct. 2026</time> · La Carrière</li>
+          <li><time datetime="2026-10-20">20 oct. 2026</time> · Le Bikini</li>
+        </ul>
+        <p class="muted">Les liens vers les setlists détaillées sont masqués pour préserver la surprise.</p>
+      </details>
+      <button class="primary" data-next="spotify">Continuer</button>
+    </section>
+
+    <section class="card" data-step="spotify" hidden>
+      <div class="source-heading"><h2>Connexion</h2><span class="spotify-tag">SPOTIFY</span></div>
+      <p>Dans le produit final, la connexion sécurisée se ferait ici et serait réutilisée lors des prochaines préparations.</p>
+      <p><strong>État de la maquette :</strong> aucun compte n’est connecté. Dans le produit final, l’autorisation serait demandée ici.</p>
+      <button data-next="source">Retour</button>
+      <button class="primary" data-next="preview">Simuler la connexion et continuer</button>
+    </section>
+
+    <section class="card" data-step="preview" hidden>
+      <h2>Aperçu trié par albums</h2>
+      <p class="muted">Exemples entièrement fictifs : ni titres ni albums Spotify réels. Le classement du concert n’est jamais utilisé pour cet aperçu.</p>
+
+      <div class="album">
+        <div class="album-art" aria-hidden="true"></div>
+        <div><div class="row"><h3>Album fictif A · année récente</h3><span>2 titres</span></div>
+        <ol><li>Titre fictif A1</li><li>Titre fictif A2</li></ol></div>
+      </div>
+      <div class="album">
+        <div class="album-art" aria-hidden="true"></div>
+        <div><div class="row"><h3>Album fictif B · année antérieure</h3><span>1 titre</span></div>
+        <ol><li>Titre fictif B1</li></ol></div>
+      </div>
+
+      <div class="card">
+        <h3>Correspondance à vérifier · exemple fictif</h3>
+        <p>Un titre n’a pas de correspondance Spotify suffisamment claire.</p>
+        <button type="button" data-choice="choose">Choisir une version</button>
+        <button type="button" data-choice="skip">Ignorer ce titre</button>
+      </div>
+
+      <p id="choice-status" class="muted" aria-live="polite"></p>
+      <button data-next="spotify">Retour</button>
+      <button class="primary" data-next="confirm">Continuer vers la confirmation</button>
+    </section>
+
+    <section class="card" data-step="confirm" hidden>
+      <h2>Remplacer la playlist ?</h2>
+      <p>Le produit final remplacera entièrement « En attendant Ghinzu » par l’aperçu confirmé.</p>
+      <p>Cette maquette ne modifie aucune playlist.</p>
+      <button data-next="preview">Retour à l’aperçu</button>
+      <button class="primary" type="button" id="simulate">Simuler le remplacement</button>
+      <p id="status" role="status" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <script>
+    const steps = [...document.querySelectorAll("[data-step]")];
+    const indicators = [...document.querySelectorAll(".steps li")];
+    const stepNames = ["source", "spotify", "preview", "confirm"];
+
+    function showStep(name) {
+      steps.forEach((section) => { section.hidden = section.dataset.step !== name; });
+      indicators.forEach((indicator, index) => {
+        if (stepNames[index] === name) indicator.setAttribute("aria-current", "step");
+        else indicator.removeAttribute("aria-current");
+      });
+      document.querySelector("h1").focus?.();
+    }
+
+    document.querySelectorAll("[data-next]").forEach((button) => {
+      button.addEventListener("click", () => showStep(button.dataset.next));
+    });
+
+    document.querySelectorAll("[data-choice]").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelector("#choice-status").textContent =
+          button.dataset.choice === "choose"
+            ? "Dans le produit final, les versions possibles seraient proposées ici."
+            : "Titre marqué pour exclusion de la playlist.";
+      });
+    });
+
+    document.querySelector("#simulate").addEventListener("click", () => {
+      document.querySelector("#status").textContent =
+        "Simulation terminée — aucun appel Spotify n’a été effectué.";
+    });
+  </script>
+</body>
+</html>
