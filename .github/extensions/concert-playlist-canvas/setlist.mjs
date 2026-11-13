@@ -3,24 +3,24 @@ const TARGET_SHOWS = 5;
 const MAX_PAGES = 25;
 
 export async function searchArtists({ name, apiKey, fetchImpl = fetch }) {
-    if (!apiKey?.trim()) throw new Error("SETLISTFM_API_KEY est absent de l’environnement approuvé par Copilot.");
+    if (!apiKey?.trim()) throw new Error("SETLISTFM_API_KEY is missing from the environment approved by Copilot.");
     const query = typeof name === "string" ? name.trim() : "";
-    if (!query || query.length > 200) throw new Error("Saisissez un nom d’artiste de 1 à 200 caractères.");
+    if (!query || query.length > 200) throw new Error("Enter an artist name between 1 and 200 characters.");
     const params = new URLSearchParams({ artistName: query, sort: "relevance" });
     const response = await fetchImpl(`https://api.setlist.fm/rest/1.0/search/artists?${params}`, {
         headers: { Accept: "application/json", "x-api-key": apiKey.trim() },
         signal: AbortSignal.timeout(20_000),
     });
     if (response.status === 404) return { artists: [], total: 0 };
-    if (response.status === 401 || response.status === 403) throw new Error("Clé setlist.fm invalide ou non autorisée.");
-    if (!response.ok) throw new Error(`Erreur setlist.fm (${response.status}). Réessayez plus tard.`);
+    if (response.status === 401 || response.status === 403) throw new Error("Invalid or unauthorized setlist.fm API key.");
+    if (!response.ok) throw new Error(`setlist.fm error (${response.status}). Try again later.`);
     const payload = await response.json();
     if (!Array.isArray(payload.artist) || !Number.isInteger(payload.total) || payload.total < 0) {
-        throw new Error("Réponse setlist.fm invalide pour la recherche d’artistes.");
+        throw new Error("Invalid setlist.fm response for artist search.");
     }
     const artists = payload.artist.map((artist) => {
         if (!ARTIST_MBID.test(artist?.mbid ?? "") || typeof artist.name !== "string" || !artist.name.trim()) {
-            throw new Error("Résultat d’artiste setlist.fm invalide.");
+            throw new Error("Invalid setlist.fm artist result.");
         }
         return { mbid: artist.mbid, name: artist.name.trim(), disambiguation: String(artist.disambiguation ?? "").trim() };
     });
@@ -45,10 +45,13 @@ function getSongs(setlist) {
         const songs = set?.song ?? [];
         for (const song of Array.isArray(songs) ? songs : [songs]) {
             if (!song?.name || song.tape === true) continue;
+            const artist = String(setlist.artist?.name ?? "").trim();
+            const originalArtist = typeof song.cover?.name === "string" ? song.cover.name.trim() : "";
             result.push({
                 title: String(song.name).trim(),
-                artist: String(setlist.artist?.name ?? "").trim(),
+                artist,
                 cover: Boolean(song.cover) || /\bcover\b/i.test(String(song.info ?? "")),
+                coverArtist: originalArtist && normalize(originalArtist) !== normalize(artist) ? originalArtist : "",
             });
         }
     }
@@ -62,10 +65,15 @@ function normalize(value) {
 function summarizeShow(setlist) {
     const city = setlist.venue?.city;
     const place = [setlist.venue?.name, city?.name, city?.country?.name].filter(Boolean).join(", ");
+    const url = typeof setlist.url === "string" && URL.canParse(setlist.url) ? new URL(setlist.url) : null;
+    const trustedUrl = url?.protocol === "https:"
+        && (url.hostname === "www.setlist.fm" || url.hostname === "setlist.fm")
+        && !url.port && !url.username && !url.password && url.pathname.startsWith("/setlist/");
     return {
         date: setlist.eventDate,
-        venue: place || "Salle non précisée",
+        venue: place || "Venue not specified",
         entries: getSongs(setlist).length,
+        url: trustedUrl ? url.href : null,
     };
 }
 
@@ -85,14 +93,14 @@ export async function loadSetlistSource({
     fetchImpl = fetch,
     now = new Date(),
 }) {
-    if (!apiKey?.trim()) throw new Error("SETLISTFM_API_KEY est absent de l’environnement approuvé par Copilot.");
-    if (!ARTIST_MBID.test(artistMbid)) throw new Error("MBID MusicBrainz invalide.");
+    if (!apiKey?.trim()) throw new Error("SETLISTFM_API_KEY is missing from the environment approved by Copilot.");
+    if (!ARTIST_MBID.test(artistMbid)) throw new Error("Invalid MusicBrainz MBID.");
 
     const cutoff = annualCutoff(now);
     const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
     const seen = new Set();
     const candidates = [];
-    let artist = requestedArtist || "Artiste";
+    let artist = requestedArtist || "Artist";
     let completeSearch = false;
 
     for (let page = 1; page <= MAX_PAGES; page++) {
@@ -100,9 +108,9 @@ export async function loadSetlistSource({
             headers: { Accept: "application/json", "x-api-key": apiKey.trim() },
             signal: AbortSignal.timeout(20_000),
         });
-        if (response.status === 404) throw new Error("Artiste introuvable sur setlist.fm.");
-        if (response.status === 401 || response.status === 403) throw new Error("Clé setlist.fm invalide ou non autorisée.");
-        if (!response.ok) throw new Error(`Erreur setlist.fm (${response.status}). Réessayez plus tard.`);
+        if (response.status === 404) throw new Error("Artist not found on setlist.fm.");
+        if (response.status === 401 || response.status === 403) throw new Error("Invalid or unauthorized setlist.fm API key.");
+        if (!response.ok) throw new Error(`setlist.fm error (${response.status}). Try again later.`);
 
         const payload = await response.json();
         const items = payload.setlist ?? payload.setlists?.setlist ?? [];
@@ -139,7 +147,7 @@ export async function loadSetlistSource({
         }
     }
     if (!completeSearch) {
-        throw new Error("La recherche dépasse la limite de 25 pages setlist.fm. Réessayez avec une source plus précise.");
+        throw new Error("The search exceeds the 25-page setlist.fm limit. Try a more specific source.");
     }
 
     const tour = candidates[0]?.item.tour?.name?.trim();
@@ -147,15 +155,27 @@ export async function loadSetlistSource({
     const useTour = tourMatches.length >= TARGET_SHOWS;
     const selected = (useTour ? tourMatches : candidates).slice(0, TARGET_SHOWS).map(({ item }) => item);
     if (!selected.length && acceptIncomplete) {
-        throw new Error("Aucun concert avec des morceaux exploitables n’a été trouvé.");
+        throw new Error("No concerts with usable songs were found.");
     }
     const songsByKey = new Map();
+    const ambiguousCoverArtists = new Set();
     for (const setlist of selected) {
         for (const song of getSongs(setlist)) {
             const key = `${normalize(song.title)}|${normalize(song.artist)}`;
             const existing = songsByKey.get(key);
-            if (existing) existing.cover ||= song.cover;
-            else songsByKey.set(key, { ...song, id: key });
+            if (!existing) {
+                songsByKey.set(key, { ...song, id: key });
+            } else {
+                existing.cover ||= song.cover;
+                if (song.coverArtist && !ambiguousCoverArtists.has(key)) {
+                    if (existing.coverArtist && normalize(existing.coverArtist) !== normalize(song.coverArtist)) {
+                        existing.coverArtist = "";
+                        ambiguousCoverArtists.add(key);
+                    } else {
+                        existing.coverArtist = song.coverArtist;
+                    }
+                }
+            }
         }
     }
     const collator = new Intl.Collator("fr", { sensitivity: "base", numeric: true });
@@ -166,8 +186,8 @@ export async function loadSetlistSource({
     return {
         artist,
         source: {
-            method: useTour ? `Cinq concerts de la tournée : ${tour}` : "Concerts renseignés les plus récents",
-            period: allowOlder ? "Recherche élargie aux concerts plus anciens" : "Douze derniers mois",
+            method: useTour ? `Five concerts from the tour: ${tour}` : "Most recent documented concerts",
+            period: allowOlder ? "Search expanded to older concerts" : "Last twelve months",
             shows: selected.map(summarizeShow),
             count: selected.length,
         },

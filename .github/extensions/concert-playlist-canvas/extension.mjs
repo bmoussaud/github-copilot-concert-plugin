@@ -33,7 +33,7 @@ function json(res, status, value) {
 }
 
 function errorMessage(error) {
-    return error instanceof Error ? error.message : "Erreur inattendue.";
+    return error instanceof Error ? error.message : "Unexpected error.";
 }
 
 function escapeHtml(value) {
@@ -52,13 +52,13 @@ async function readJson(req) {
     req.setEncoding("utf8");
     for await (const chunk of req) {
         bytes += Buffer.byteLength(chunk, "utf8");
-        if (bytes > 65_536) throw new Error("La requête est trop volumineuse.");
+        if (bytes > 65_536) throw new Error("Request is too large.");
         text += chunk;
     }
     try {
         return text ? JSON.parse(text) : {};
     } catch {
-        throw new Error("Corps JSON invalide.");
+        throw new Error("Invalid JSON body.");
     }
 }
 
@@ -77,7 +77,7 @@ async function exchangeAuthorizationCode(code, state) {
     const pending = pendingAuthorizations.get(state);
     pendingAuthorizations.delete(state);
     if (!pending || pending.createdAt < Date.now() - 10 * 60_000) {
-        throw new Error("Autorisation expirée ou état OAuth invalide.");
+        throw new Error("Authorization expired or invalid OAuth state.");
     }
 
     const response = await fetch("https://accounts.spotify.com/api/token", {
@@ -92,11 +92,11 @@ async function exchangeAuthorizationCode(code, state) {
         }),
         signal: AbortSignal.timeout(15_000),
     });
-    if (!response.ok) throw new Error("Spotify a refusé l'autorisation.");
+    if (!response.ok) throw new Error("Spotify rejected the authorization.");
     const result = await response.json();
     if (typeof result.access_token !== "string" || typeof result.refresh_token !== "string"
         || !Number.isFinite(result.expires_in) || result.expires_in <= 0) {
-        throw new Error("Réponse d’autorisation Spotify invalide.");
+        throw new Error("Invalid Spotify authorization response.");
     }
     spotifyTokens = {
         accessToken: result.access_token,
@@ -116,9 +116,9 @@ async function handleSpotifyCallback(req, res) {
     try {
         if (oauthError) {
             pendingAuthorizations.delete(state);
-            throw new Error("Autorisation Spotify refusée.");
+            throw new Error("Spotify authorization denied.");
         }
-        if (!state || !code) throw new Error("Réponse Spotify incomplète.");
+        if (!state || !code) throw new Error("Incomplete Spotify response.");
         await exchangeAuthorizationCode(code, state);
         res.writeHead(200, {
             "Content-Type": "text/html; charset=utf-8",
@@ -126,7 +126,7 @@ async function handleSpotifyCallback(req, res) {
             "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
             "X-Content-Type-Options": "nosniff",
         });
-        res.end("<!doctype html><meta charset=utf-8><title>Spotify connecté</title><p>Spotify est connecté. Revenez dans l’onglet du prototype.</p>");
+        res.end("<!doctype html><html lang=en><meta charset=utf-8><title>Spotify connected</title><p>Spotify is connected. Return to the canvas.</p></html>");
     } catch (error) {
         res.writeHead(400, {
             "Content-Type": "text/html; charset=utf-8",
@@ -134,7 +134,7 @@ async function handleSpotifyCallback(req, res) {
             "Content-Security-Policy": "default-src 'none'",
             "X-Content-Type-Options": "nosniff",
         });
-        res.end(`<!doctype html><meta charset=utf-8><title>Connexion Spotify</title><p>${escapeHtml(errorMessage(error))}</p><p>Revenez dans l’onglet du prototype et réessayez.</p>`);
+        res.end(`<!doctype html><html lang=en><meta charset=utf-8><title>Spotify connection</title><p>${escapeHtml(errorMessage(error))}</p><p>Return to the canvas and try again.</p></html>`);
     }
 }
 
@@ -160,7 +160,7 @@ async function ensureCallbackServer() {
 
 async function startSpotifyAuthorization() {
     const clientId = process.env.SPOTIFY_CLIENT_ID?.trim();
-    if (!clientId) throw new Error("SPOTIFY_CLIENT_ID est absent. Définissez cette variable puis rechargez l’extension.");
+    if (!clientId) throw new Error("SPOTIFY_CLIENT_ID is missing. Set it and reload the extension.");
     await ensureCallbackServer();
     cleanExpiredAuthorizations();
 
@@ -192,7 +192,7 @@ async function refreshSpotifyToken() {
 }
 
 async function refreshSpotifyTokenOnce() {
-    if (!spotifyTokens?.refreshToken) throw new Error("Reconnectez votre compte Spotify.");
+    if (!spotifyTokens?.refreshToken) throw new Error("Reconnect your Spotify account.");
     const response = await fetch("https://accounts.spotify.com/api/token", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -206,11 +206,11 @@ async function refreshSpotifyTokenOnce() {
     if (!response.ok) {
         spotifyTokens = null;
         spotifyUserId = null;
-        throw new Error("La session Spotify a expiré. Reconnectez-vous.");
+        throw new Error("Your Spotify session has expired. Reconnect.");
     }
     const result = await response.json();
     if (typeof result.access_token !== "string" || !Number.isFinite(result.expires_in) || result.expires_in <= 0) {
-        throw new Error("Réponse de renouvellement Spotify invalide. Reconnectez-vous.");
+        throw new Error("Invalid Spotify refresh response. Reconnect.");
     }
     spotifyTokens = {
         ...spotifyTokens,
@@ -221,10 +221,10 @@ async function refreshSpotifyTokenOnce() {
 }
 
 async function spotifyFetch(path, options = {}, retried = false) {
-    if (!spotifyTokens) throw new Error("Connectez d’abord votre compte Spotify.");
+    if (!spotifyTokens) throw new Error("Connect your Spotify account first.");
     if (spotifyTokens.expiresAt < Date.now() + 30_000) await refreshSpotifyToken();
     const accessToken = spotifyTokens?.accessToken;
-    if (!accessToken) throw new Error("Reconnectez votre compte Spotify.");
+    if (!accessToken) throw new Error("Reconnect your Spotify account.");
     const response = await fetch(`https://api.spotify.com/v1${path}`, {
         ...options,
         headers: {
@@ -240,8 +240,8 @@ async function spotifyFetch(path, options = {}, retried = false) {
     }
     if (response.status === 204) return null;
     if (!response.ok) {
-        if (response.status === 429) throw new Error("Spotify limite temporairement les requêtes. Réessayez dans quelques secondes.");
-        throw new Error(`Erreur Spotify (${response.status}). Vérifiez les autorisations accordées.`);
+        if (response.status === 429) throw new Error("Spotify is temporarily rate-limiting requests. Try again in a few seconds.");
+        throw new Error(`Spotify error (${response.status}). Check the granted permissions.`);
     }
     return response.json();
 }
@@ -249,7 +249,7 @@ async function spotifyFetch(path, options = {}, retried = false) {
 async function getSpotifyUser() {
     if (!spotifyUserId) {
         const profile = await spotifyFetch("/me");
-        if (typeof profile?.id !== "string" || !profile.id) throw new Error("Profil Spotify incomplet.");
+        if (typeof profile?.id !== "string" || !profile.id) throw new Error("Incomplete Spotify profile.");
         spotifyUserId = profile.id;
     }
     return spotifyUserId;
@@ -260,15 +260,15 @@ async function getOwnedPrivatePlaylists() {
     const playlists = [];
     for (let offset = 0; offset <= 100_000; offset += 50) {
         const page = await spotifyFetch(`/me/playlists?limit=50&offset=${offset}`);
-        if (!Array.isArray(page.items)) throw new Error("Réponse Spotify invalide pour les playlists.");
+        if (!Array.isArray(page.items)) throw new Error("Invalid Spotify playlist response.");
         const items = page.items;
         playlists.push(...items
             .filter((item) => item.owner?.id === userId && item.public === false)
             .map((item) => ({ id: item.id, name: item.name, tracks: item.items?.total ?? item.tracks?.total ?? 0 })));
         if (!page.next) return playlists;
-        if (!items.length) throw new Error("La pagination des playlists Spotify est incomplète.");
+        if (!items.length) throw new Error("Spotify playlist pagination is incomplete.");
     }
-    throw new Error("La liste des playlists Spotify dépasse la limite de pagination.");
+    throw new Error("The Spotify playlist list exceeds the pagination limit.");
 }
 
 async function routeApi(req, res, url) {
@@ -306,15 +306,15 @@ async function routeApi(req, res, url) {
         const title = String(body.title ?? "").trim();
         const artist = String(body.artist ?? "").trim();
         if (!title || title.length > 200 || artist.length > 200) {
-            throw new Error("Titre ou artiste manquant ou trop long.");
+            throw new Error("Track title is missing, or the title or artist is too long.");
         }
         const query = new URLSearchParams({
-            q: `track:${title} artist:${artist}`,
+            q: `track:${title}${artist ? ` artist:${artist}` : ""}`,
             type: "track",
             limit: "5",
         });
         const result = await spotifyFetch(`/search?${query}`);
-        if (!Array.isArray(result.tracks?.items)) throw new Error("Réponse Spotify invalide pour la recherche.");
+        if (!Array.isArray(result.tracks?.items)) throw new Error("Invalid Spotify search response.");
         const tracks = result.tracks.items;
         return sendJson(res, 200, {
             tracks: tracks.map((track) => ({
@@ -322,7 +322,7 @@ async function routeApi(req, res, url) {
                 uri: track.uri,
                 title: track.name,
                 artists: track.artists?.map((item) => item.name) ?? [],
-                album: track.album?.name ?? "Album inconnu",
+                album: track.album?.name ?? "Unknown album",
                 albumType: track.album?.album_type ?? "",
                 releaseDate: track.album?.release_date ?? "",
                 disc: track.disc_number ?? 1,
@@ -344,20 +344,20 @@ async function routeApi(req, res, url) {
         const name = String(body.name ?? "").trim();
         const playlistId = String(body.playlistId ?? "").trim();
         const tracks = body.tracks;
-        if (!name || name.length > 100) throw new Error("Nom de playlist invalide.");
+        if (!name || name.length > 100) throw new Error("Invalid playlist name.");
         if (!Array.isArray(tracks) || tracks.length < 1 || tracks.length > 1000) {
-            throw new Error("La playlist doit contenir entre 1 et 1 000 titres.");
+            throw new Error("The playlist must contain between 1 and 1,000 tracks.");
         }
         if (tracks.some((uri) => typeof uri !== "string" || !/^spotify:track:[A-Za-z0-9]{22}$/.test(uri))) {
-            throw new Error("La sélection contient une URI Spotify invalide.");
+            throw new Error("The selection contains an invalid Spotify URI.");
         }
 
         let playlist;
         if (playlistId) {
-            if (!/^[A-Za-z0-9]{22}$/.test(playlistId)) throw new Error("Identifiant de playlist invalide.");
+            if (!/^[A-Za-z0-9]{22}$/.test(playlistId)) throw new Error("Invalid playlist ID.");
             const owned = await getOwnedPrivatePlaylists();
             if (!owned.some((item) => item.id === playlistId)) {
-                throw new Error("Cette playlist n’est pas une playlist privée appartenant à votre compte.");
+                throw new Error("This is not a private playlist owned by your account.");
             }
             playlist = { id: playlistId };
             try {
@@ -372,7 +372,7 @@ async function routeApi(req, res, url) {
                     });
                 }
             } catch (error) {
-                throw new Error(`Enregistrement interrompu : la playlist a pu être partiellement modifiée. Vérifiez-la avant de réessayer. ${errorMessage(error)}`);
+                throw new Error(`Save interrupted: the playlist may have been partially modified. Check it before retrying. ${errorMessage(error)}`);
             }
         } else {
             try {
@@ -380,7 +380,7 @@ async function routeApi(req, res, url) {
                     method: "POST",
                     body: JSON.stringify({
                         name,
-                        description: "Préparation de concert sans spoiler — setlist triée par album.",
+                        description: "Spoiler-free concert preparation — setlist sorted by album.",
                         public: false,
                         collaborative: false,
                     }),
@@ -392,12 +392,12 @@ async function routeApi(req, res, url) {
                     });
                 }
             } catch (error) {
-                throw new Error(`Enregistrement interrompu : une playlist vide ou incomplète a pu être créée. Vérifiez Spotify avant de réessayer. ${errorMessage(error)}`);
+                throw new Error(`Save interrupted: an empty or incomplete playlist may have been created. Check Spotify before retrying. ${errorMessage(error)}`);
             }
         }
         return sendJson(res, 200, { url: `https://open.spotify.com/playlist/${playlist.id}` });
     }
-    return sendJson(res, 404, { error: "Route introuvable." });
+    return sendJson(res, 404, { error: "Route not found." });
 }
 
 async function startCanvasServer() {
@@ -411,7 +411,7 @@ async function startCanvasServer() {
         const url = new URL(req.url ?? "/", "http://127.0.0.1");
         if (url.pathname.startsWith("/api/")) {
             void routeApi(req, res, url).catch((error) => {
-                const status = error instanceof Error && error.message.includes("Connectez") ? 401 : 400;
+                const status = error instanceof Error && error.message.includes("Connect your Spotify account first") ? 401 : 400;
                 void sendJson(res, status, { error: errorMessage(error) });
             });
             return;
@@ -445,14 +445,14 @@ await joinSession({
     canvases: [
         createCanvas({
             id: "concert-playlist",
-            displayName: "Playlist anti-spoiler",
-            description: "Préparer une playlist de concert privée à partir des setlists setlist.fm, sans exposer de titres à l’agent",
+            displayName: "Spoiler-free playlist",
+            description: "Prepare a private concert playlist from setlist.fm without exposing track titles to the agent",
             actions: [
                 {
                     name: "show_source_summary",
-                    description: "Afficher le résumé non-spoiler de la source testée",
+                    description: "Show the spoiler-free source summary",
                     handler: async () => ({
-                        message: "La source et les titres sont affichés uniquement dans le Canvas local; aucun contenu Spotify ni ordre de concert n’est envoyé à l’agent.",
+                        message: "The source and tracks are shown only in the local canvas; no Spotify content or concert order is sent to the agent.",
                     }),
                 },
             ],
@@ -462,7 +462,7 @@ await joinSession({
                     entry = await startCanvasServer();
                     servers.set(ctx.instanceId, entry);
                 }
-                return { title: "Playlist anti-spoiler", url: entry.url };
+                return { title: "Spoiler-free playlist", url: entry.url };
             },
             onClose: async (ctx) => {
                 const entry = servers.get(ctx.instanceId);

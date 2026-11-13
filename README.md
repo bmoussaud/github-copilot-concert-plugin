@@ -2,7 +2,7 @@
 
 Prepare a private Spotify playlist for an upcoming concert without revealing
 the order in which songs were played. This is a local canvas extension for the
-GitHub Copilot App. Its current interface is in French.
+GitHub Copilot App.
 
 The canvas searches setlist.fm for an artist and recent concerts, collects
 distinct songs, and lets you choose their Spotify versions. The preview groups
@@ -132,15 +132,17 @@ foreach ($name in 'SETLISTFM_API_KEY', 'SPOTIFY_CLIENT_ID') {
 ## Create a playlist
 
 1. In a local Copilot App session where the extension is installed, ask:
-   **“Open the Playlist anti-spoiler canvas.”**
+   **“Open the Spoiler-free playlist canvas.”**
 2. Under **Source**, search for the artist and select the correct result.
    The MusicBrainz identifier is retrieved automatically. Load the setlists;
    if coverage is incomplete, choose whether to expand the search or continue.
-3. Under **Connexion**, sign in to Spotify and grant the requested permissions.
-4. Under **Sélection**, check the proposed versions, edit a search title if
+   Each selected concert links to setlist.fm; opening it can reveal the concert order.
+3. Under **Connect**, sign in to Spotify and grant the requested permissions.
+4. Under **Selection**, check the proposed versions, edit a search title if
    necessary, or exclude a song. Missing matches are highlighted. Spotify album
-   artwork is shown in the version menu when available.
-5. Under **Aperçu**, review the album-sorted tracks and choose whether to
+   artwork is shown in the version menu when available. Covers are searched by
+   their original artist when known, or by title alone otherwise.
+5. Under **Preview**, review the album-sorted tracks and choose whether to
    create a playlist or replace an owned private playlist.
 6. Under **Confirmation**, explicitly confirm the Spotify write.
 
