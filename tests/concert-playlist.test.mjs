@@ -16,6 +16,7 @@ function show(id, eventDate, titles, tour = "Tournée actuelle") {
         artist: { name: "Artiste exemple" },
         tour: tour ? { name: tour } : undefined,
         venue: { id: `venue-${id}`, name: `Salle ${id}` },
+        url: `https://www.setlist.fm/setlist/example/2026/venue-${id}.html`,
         sets: { set: [{ song: titles.map((title) => typeof title === "string" ? { name: title } : title) }] },
     };
 }
@@ -63,12 +64,13 @@ test("artist search returns selectable MusicBrainz IDs and disambiguation", asyn
     assert.equal(result.artists[0].mbid, artistMbid);
     assert.equal(result.artists[1].disambiguation, "Autre groupe");
     assert.deepEqual(await searchArtists({ name: "Absent", apiKey: "test-key", fetchImpl: async () => ({ status: 404 }) }), { artists: [], total: 0 });
-    await assert.rejects(() => searchArtists({ name: " ", apiKey: "test-key", fetchImpl }), /1 à 200/);
+    await assert.rejects(() => searchArtists({ name: " ", apiKey: "test-key", fetchImpl }), /1 and 200/);
     await assert.rejects(() => searchArtists({ name: "Test", apiKey: "test-key", fetchImpl: async () => ({ status: 429, ok: false }) }), /429/);
 });
 
 test("artist selection supplies the chosen ID and ignores stale searches", async () => {
     const html = await readFile(new URL("../.github/extensions/concert-playlist-canvas/app.html", import.meta.url), "utf8");
+    assert.match(html, /<html lang="en">/);
     const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
     const elements = new Map();
     function element() {
@@ -134,10 +136,92 @@ test("the union uses five shows, removes duplicates and tapes, and hides concert
     }]);
     const result = await search(api.fetchImpl);
     assert.equal(result.source.count, 5);
+    assert.deepEqual(result.source.shows.map((show) => show.url),
+        ["1", "2", "3", "4", "5"].map((id) => `https://www.setlist.fm/setlist/example/2026/venue-${id}.html`));
     assert.deepEqual(result.songs.map((song) => song.title), ["Alpha", "Bêta", "Echo", "Gamma", "Zulu"]);
     assert.equal(result.songs.find((song) => song.title === "Echo").cover, true);
     assert.equal(result.songs.find((song) => song.title === "Echo").artist, "Artiste exemple");
     assert.equal(result.needsOlderConsent, false);
+});
+
+test("cover artists survive deduplication and conflicting or missing artists remain unknown", async () => {
+    const api = fakeApi([{ total: 3, itemsPerPage: 20, setlist: [
+        show("1", "29-10-2026", ["Known", { name: "Conflict", cover: { name: "Original A" } }]),
+        show("2", "28-10-2026", [
+            { name: "Known", cover: { name: "Original B" } },
+            { name: "Conflict", cover: { name: "Original B" } },
+            { name: "Unknown", info: "cover" },
+            { name: "Self", cover: { name: "Artiste exemple" } },
+        ]),
+        show("3", "27-10-2026", [{ name: "Conflict", cover: { name: "Original A" } }]),
+    ] }]);
+    const result = await search(api.fetchImpl);
+    const find = (title) => result.songs.find((song) => song.title === title);
+    assert.equal(find("Known").cover, true);
+    assert.equal(find("Known").coverArtist, "Original B");
+    for (const title of ["Conflict", "Unknown", "Self"]) {
+        assert.equal(find(title).cover, true);
+        assert.equal(find(title).coverArtist, "");
+    }
+});
+
+test("setlist links reject missing and untrusted URLs", async () => {
+    const shows = [
+        show("1", "29-10-2026", ["A"]),
+        show("2", "28-10-2026", ["B"]),
+        show("3", "27-10-2026", ["C"]),
+        show("4", "26-10-2026", ["D"]),
+        show("5", "25-10-2026", ["E"]),
+    ];
+    shows[1].url = "javascript:alert(1)";
+    shows[2].url = "https://www.setlist.fm.evil.example/setlist/example";
+    shows[3].url = "https://www.setlist.fm@evil.example/setlist/example";
+    delete shows[4].url;
+    const result = await search(fakeApi([{ total: 5, itemsPerPage: 20, setlist: shows }]).fetchImpl);
+    assert.deepEqual(result.source.shows.map((show) => show.url), [shows[0].url, null, null, null, null]);
+});
+
+test("source displays discreet setlist links with spoiler warnings", async () => {
+    const html = await readFile(new URL("../.github/extensions/concert-playlist-canvas/app.html", import.meta.url), "utf8");
+    const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+    function element(tag = "") {
+        return {
+            tag, children: [], attributes: {}, textContent: "",
+            append(...items) { this.children.push(...items); },
+            replaceChildren(...items) { this.children = items; },
+            setAttribute(name, value) { this.attributes[name] = value; },
+            addEventListener() {},
+        };
+    }
+    const elements = new Map();
+    const get = (selector) => {
+        if (!elements.has(selector)) elements.set(selector, element());
+        return elements.get(selector);
+    };
+    const context = {
+        document: { querySelectorAll: () => [], querySelector: get, createElement: element },
+    };
+    runInNewContext(`${script}\n globalThis.render = renderSource;`, context);
+    const shows = Array.from({ length: 5 }, (_, i) => ({
+        date: `0${i + 1}-10-2026`, venue: `Venue ${i + 1}`, entries: 3,
+        url: `https://www.setlist.fm/setlist/example/2026/venue-${i + 1}.html`,
+    }));
+    context.render({ source: { count: 5, method: "Recent", period: "Year", shows }, songs: [] }, {});
+    const root = get("#source-result");
+    const rows = root.children.find((child) => child.tag === "ul").children;
+    assert.equal(rows.length, 5);
+    for (let i = 0; i < rows.length; i++) {
+        const link = rows[i].children[0];
+        assert.equal(link.tag, "a");
+        assert.equal(link.href, shows[i].url);
+        assert.equal(link.target, "_blank");
+        assert.equal(link.rel, "noopener noreferrer");
+        assert.match(link.attributes["aria-label"], /contains spoilers/);
+    }
+    assert.ok(root.children.some((child) => /may reveal the running order/.test(child.textContent)));
+    shows[0].url = null;
+    context.render({ source: { count: 5, method: "Recent", period: "Year", shows }, songs: [] }, {});
+    assert.equal(root.children.find((child) => child.tag === "ul").children[0].children[0].textContent, "Link unavailable");
 });
 
 test("prefers five current-tour shows even when they span API pages", async () => {
@@ -171,7 +255,7 @@ test("falls back to the five latest shows when the current tour has fewer than f
     ] }]);
     const result = await search(api.fetchImpl);
     assert.equal(result.source.count, 5);
-    assert.match(result.source.method, /plus récents/);
+    assert.match(result.source.method, /Most recent documented concerts/);
     assert.deepEqual(result.songs.map((song) => song.title), ["A", "B", "C", "D", "E"]);
 });
 
@@ -286,7 +370,7 @@ test("song rows highlight missing results and reveal the search editor only on t
     assert.equal(title.textContent, "Exemple");
     assert.equal(title.hidden, false);
     assert.equal(form.hidden, true);
-    assert.equal(search.attributes["aria-label"], "Rechercher sur Spotify");
+    assert.equal(search.attributes["aria-label"], "Search Spotify");
     title.handlers.click();
     assert.equal(entry.editing, true);
     assert.equal(title.hidden, true);
@@ -420,7 +504,7 @@ test("editing a title searches only that query, preserves the source title and h
     });
     await context.retry(song, entry, "   ");
     assert.equal(calls, 0);
-    assert.match(entry.queryError, /1 à 200/);
+    assert.match(entry.queryError, /1 and 200/);
     const pending = context.retry(song, entry, " Titre corrigé ");
     assert.equal(entry.searching, true);
     await context.retry(song, entry, "Autre titre");
@@ -495,6 +579,71 @@ test("an empty Spotify search retries without a leading article and rejects unre
     assert.equal(calls.length, 1);
 });
 
+test("cover searches use the original artist or title alone, including article retries", async () => {
+    const html = await readFile(new URL("../.github/extensions/concert-playlist-canvas/app.html", import.meta.url), "utf8");
+    const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+    const element = { addEventListener() {} };
+    const calls = [];
+    let responses = [];
+    const context = {
+        document: { querySelectorAll: () => [], querySelector: () => element },
+        fetch: async (url, options) => {
+            calls.push(JSON.parse(options.body));
+            const tracks = responses.shift();
+            return { ok: true, json: async () => ({ tracks }) };
+        },
+    };
+    runInNewContext(`${script}\nglobalThis.search = searchSong;`, context);
+    const song = { title: "The Example", artist: "Performing Artist", cover: true, coverArtist: "Original Artist" };
+    responses = [[], [
+        { id: "original", title: "Example", artists: ["Original Artist"] },
+        { id: "performer", title: "Example", artists: ["Performing Artist"] },
+    ]];
+    let tracks = await context.search(song);
+    assert.deepEqual(calls.map((call) => call.artist), ["Original Artist", "Original Artist"]);
+    assert.equal(tracks.length, 1);
+    assert.equal(tracks[0].id, "original");
+
+    calls.length = 0;
+    song.coverArtist = "";
+    responses = [[], [
+        { id: "match", title: "Example", artists: ["Another Artist"] },
+        { id: "wrong-title", title: "Example Live", artists: ["Another Artist"] },
+    ]];
+    tracks = await context.search(song);
+    assert.deepEqual(calls.map((call) => call.artist), ["", ""]);
+    assert.equal(tracks.length, 1);
+    assert.equal(tracks[0].id, "match");
+
+    calls.length = 0;
+    song.cover = false;
+    responses = [[{ id: "regular", title: "The Example", artists: ["Performing Artist"] }]];
+    await context.search(song);
+    assert.equal(calls[0].artist, "Performing Artist");
+});
+
+test("Spotify search endpoint omits the artist filter for title-only searches", async () => {
+    const extension = await readFile(new URL("../.github/extensions/concert-playlist-canvas/extension.mjs", import.meta.url), "utf8");
+    const start = extension.indexOf("async function routeApi(");
+    const end = extension.indexOf("\nasync function startCanvasServer(", start);
+    const queries = [];
+    const context = {
+        URLSearchParams,
+        readJson: async (req) => req.body,
+        spotifyFetch: async (path) => {
+            queries.push(new URL(path, "https://api.spotify.com").searchParams.get("q"));
+            return { tracks: { items: [] } };
+        },
+        sendJson: (res, status, body) => { res.status = status; res.body = body; },
+    };
+    runInNewContext(`${extension.slice(start, end)}\nglobalThis.route = routeApi;`, context);
+    const url = new URL("http://127.0.0.1/api/spotify/search");
+    const response = {};
+    await context.route({ method: "POST", body: { title: "Example", artist: "" } }, response, url);
+    await context.route({ method: "POST", body: { title: "Example", artist: "Original Artist" } }, response, url);
+    assert.deepEqual(queries, ["track:Example", "track:Example artist:Original Artist"]);
+});
+
 test("private playlists are ordered by their latest known complete addition dates across all pages", async () => {
     const playlists = [
         { id: "empty" },
@@ -554,7 +703,7 @@ test("playlist activity errors are surfaced instead of producing an incorrect or
     );
     await assert.rejects(
         () => orderPlaylistsByLatestAddition(playlist, async () => ({ items: [{ added_at: "invalid" }], next: null })),
-        /Date d’ajout Spotify invalide/,
+        /Invalid Spotify track addition date/,
     );
 });
 
@@ -639,18 +788,18 @@ test("playlist sorting updates the preview without losing the target and reports
     assert.equal(context.stateRef.playlistOrderStatus, "ready");
     assert.equal(select.value, "old");
     assert.deepEqual(select.children.map((option) => option.value), ["", "new", "old", "empty"]);
-    assert.match(select.children[3].label, /date inconnue/);
+    assert.match(select.children[3].label, /unknown date/);
 
     context.fetch = async () => response(ordered.filter((playlist) => playlist.id !== "old"));
     await context.loadActivity();
     assert.equal(root.querySelector("select").value, "old");
-    assert.match(root.querySelector("select").children.at(-1).label, /date inconnue/);
+    assert.match(root.querySelector("select").children.at(-1).label, /unknown date/);
 
     context.fetch = async () => ({ ok: false, status: 429, json: async () => ({ error: "Limite Spotify" }) });
     await context.loadActivity();
     assert.equal(context.stateRef.playlistOrderStatus, "error");
     assert.ok(root.children.some((child) => child.textContent?.includes("Limite Spotify")));
-    assert.ok(root.children.some((child) => child.textContent === "Réessayer le tri"));
+    assert.ok(root.children.some((child) => child.textContent === "Retry sorting"));
     assert.equal(root.querySelector("select").value, "old");
 });
 

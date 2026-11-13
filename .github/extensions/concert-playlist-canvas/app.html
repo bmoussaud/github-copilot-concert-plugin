@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#15211d">
-  <title>En attendant — Playlist anti-spoiler</title>
+  <title>Concert preparation — Spoiler-free playlist</title>
   <style>
     :root {
       --green-ink: #123e2a;
@@ -83,6 +83,7 @@
     .stat span { color: #5b6b64; font-size: .8rem; }
     .show-list { padding-left: 1.25rem; }
     .show-list li { margin: .25rem 0; }
+    .show-link { margin-left: .5rem; color: var(--green-ink); font-size: .82rem; }
     .song-row { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: .65rem; padding: .7rem 0; border-top: 1px solid #e0e7e3; }
     .song-row.no-results { margin: .4rem 0; padding: .7rem; border: 2px solid #9a5700; border-radius: .45rem; background: #fff5e3; }
     .no-results-message { color: #713e00; font-weight: 700; }
@@ -128,75 +129,75 @@
   <header>
     <div class="brand">
       <span class="brand-mark" aria-hidden="true">♫</span>
-      <div><strong>Setlist → Playlist</strong><span class="brand-subtitle">Préparer le concert, garder la surprise</span></div>
-      <span class="privacy-tag">LOCAL · SANS SPOILER</span>
+      <div><strong>Setlist → Playlist</strong><span class="brand-subtitle">Prepare for the concert, keep the surprise</span></div>
+      <span class="privacy-tag">LOCAL · SPOILER-FREE</span>
     </div>
   </header>
   <main>
     <div class="notice" role="note">
-      <strong>Vos données Spotify restent dans cette interface locale.</strong>
-      Les titres ne sont jamais transmis à Copilot; l’ordre joué en concert n’est pas affiché.
+      <strong>Your Spotify data stays in this local interface.</strong>
+      Track titles are never sent to Copilot; the concert running order is not displayed.
     </div>
-    <h1 tabindex="-1">En attendant <span id="artist-heading">votre artiste</span></h1>
-    <ol class="steps" aria-label="Étapes du parcours">
+    <h1 tabindex="-1">Waiting for <span id="artist-heading">your artist</span></h1>
+    <ol class="steps" aria-label="Steps">
       <li aria-current="step">1. Source</li>
-      <li>2. Connexion</li>
-      <li>3. Sélection</li>
-      <li>4. Aperçu</li>
+      <li>2. Connect</li>
+      <li>3. Selection</li>
+      <li>4. Preview</li>
       <li>5. Confirmation</li>
     </ol>
 
     <section data-step="source">
-      <h2>Choisir la source setlist.fm</h2>
-      <p class="muted">Les morceaux des cinq concerts retenus sont dédoublonnés et affichés sans leur ordre de concert.</p>
-      <label for="artist-name">Rechercher un artiste</label>
+      <h2>Choose the setlist.fm source</h2>
+      <p class="muted">Songs from the five selected concerts are deduplicated and displayed without their concert order.</p>
+      <label for="artist-name">Search for an artist</label>
       <input id="artist-name" type="search" maxlength="200" autocomplete="off">
-      <button id="search-artists" type="button">Rechercher</button>
+      <button id="search-artists" type="button">Search</button>
       <p id="artist-search-status" role="status" aria-live="polite"></p>
       <div id="artist-results" hidden>
-        <label for="artist-choice">Choisir un artiste</label>
+        <label for="artist-choice">Choose an artist</label>
         <select id="artist-choice"></select>
       </div>
-      <button class="primary" id="load-source" disabled>Charger les setlists récentes</button>
+      <button class="primary" id="load-source" disabled>Load recent setlists</button>
       <div id="source-result" aria-live="polite"></div>
     </section>
 
     <section data-step="connect" hidden>
-      <h2>Connexion Spotify</h2>
-      <p>Spotify est utilisé ici uniquement pour rechercher des versions et enregistrer la playlist privée choisie.</p>
-      <p class="muted">Autorisation demandée : consulter vos playlists privées et en créer ou modifier une privée.</p>
-      <a class="button-link primary" id="connect-link" target="_blank" rel="noopener noreferrer" hidden>Se connecter à Spotify</a>
+      <h2>Connect to Spotify</h2>
+      <p>Spotify is used only to search for versions and save your chosen private playlist.</p>
+      <p class="muted">Requested permissions: view your private playlists and create or modify a private playlist.</p>
+      <a class="button-link primary" id="connect-link" target="_blank" rel="noopener noreferrer" hidden>Connect to Spotify</a>
       <p id="connect-status" role="status" aria-live="polite"></p>
-      <button data-back="source">Retour</button>
-      <button class="primary" id="continue-to-selection" disabled>Continuer</button>
+      <button data-back="source">Back</button>
+      <button class="primary" id="continue-to-selection" disabled>Continue</button>
     </section>
 
     <section data-step="selection" hidden>
-      <h2>Vérifier les versions Spotify</h2>
-      <p class="muted">La proposition la plus fréquente dans cette préparation est présélectionnée ; en cas d’égalité, la première proposée est retenue. Vérifiez les versions : la version studio d’origine n’est pas garantie. Décochez les titres à exclure. Les reprises seront placées à la fin.</p>
+      <h2>Review Spotify versions</h2>
+      <p class="muted">The most frequent match in this preparation is preselected; ties use Spotify's first result. Check the versions: the original studio version is not guaranteed. Uncheck tracks to exclude them. Covers will be placed at the end.</p>
       <p id="search-status" role="status" aria-live="polite"></p>
       <div id="song-choices"></div>
-      <button data-back="connect">Retour</button>
-      <button class="primary" id="continue-to-preview" disabled>Voir l’aperçu</button>
+      <button data-back="connect">Back</button>
+      <button class="primary" id="continue-to-preview" disabled>View preview</button>
     </section>
 
     <section data-step="preview" hidden>
-      <h2>Aperçu trié par albums</h2>
-      <p class="muted">Albums du plus récent au plus ancien; reprises à la fin. Aucun classement du concert n’est utilisé.</p>
+      <h2>Preview by album</h2>
+      <p class="muted">Albums are ordered newest to oldest, with covers at the end. Concert order is not used.</p>
       <div id="playlist-target"></div>
       <div id="playlist-preview"></div>
-      <button data-back="selection">Retour à la sélection</button>
-      <button class="primary" id="continue-to-confirm" disabled>Continuer vers la confirmation</button>
+      <button data-back="selection">Back to selection</button>
+      <button class="primary" id="continue-to-confirm" disabled>Continue to confirmation</button>
     </section>
 
     <section data-step="confirm" hidden>
-      <h2 id="confirm-heading">Confirmer</h2>
+      <h2 id="confirm-heading">Confirm</h2>
       <div id="confirm-summary"></div>
       <p id="confirm-warning" class="notice" role="note"></p>
-      <button data-back="preview">Retour à l’aperçu</button>
-      <button class="primary" id="save-playlist">Confirmer et enregistrer</button>
+      <button data-back="preview">Back to preview</button>
+      <button class="primary" id="save-playlist">Confirm and save</button>
       <p id="save-status" role="status" aria-live="polite"></p>
-      <a id="playlist-link" target="_blank" rel="noopener noreferrer" hidden>Ouvrir la playlist dans Spotify</a>
+      <a id="playlist-link" target="_blank" rel="noopener noreferrer" hidden>Open playlist in Spotify</a>
     </section>
   </main>
 
@@ -231,12 +232,12 @@
         headers: { ...(options.body ? { "Content-Type": "application/json" } : {}), ...options.headers },
       });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.error ?? `Erreur HTTP ${response.status}`);
+      if (!response.ok) throw new Error(body.error ?? `HTTP error ${response.status}`);
       return body;
     }
 
     function showError(element, error) {
-      element.textContent = error instanceof Error ? error.message : "Une erreur est survenue.";
+      element.textContent = error instanceof Error ? error.message : "An error occurred.";
     }
 
     function makeStat(value, label) {
@@ -251,33 +252,44 @@
       const stats = text("div", "", "stats");
       stats.append(
         makeStat(source.source.count, source.source.count === 1 ? "concert" : "concerts"),
-        makeStat(source.songs.length, source.songs.length === 1 ? "titre distinct" : "titres distincts"),
-        makeStat(source.songs.filter((song) => song.cover).length, "reprises signalées"),
+        makeStat(source.songs.length, source.songs.length === 1 ? "unique track" : "unique tracks"),
+        makeStat(source.songs.filter((song) => song.cover).length, "identified covers"),
       );
       root.append(text("p", `${source.source.method} · ${source.source.period}`), stats);
       const list = text("ul", "", "show-list");
       for (const show of source.source.shows) {
-        list.append(text("li", `${show.date} · ${show.venue} · ${show.entries} entrées exploitables`));
+        const item = text("li", `${show.date} · ${show.venue} · ${show.entries} usable entries`);
+        if (show.url) {
+          const link = text("a", "setlist.fm ↗", "show-link");
+          link.href = show.url;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.setAttribute("aria-label", `View the setlist for ${show.date} at ${show.venue} on setlist.fm (opens in a new tab; contains spoilers)`);
+          item.append(link);
+        } else {
+          item.append(text("span", "Link unavailable", "show-link muted"));
+        }
+        list.append(item);
       }
-      root.append(list, text("p", "Les liens vers les setlists détaillées sont masqués pour préserver la surprise.", "muted"));
+      root.append(list, text("p", "Setlist links open the full concert setlist and may reveal the running order.", "muted"));
       if (source.needsOlderConsent || source.needsIncompleteConsent) {
         const message = source.needsOlderConsent
-          ? "Moins de cinq concerts renseignés ont été trouvés sur les douze derniers mois. Voulez-vous chercher des concerts plus anciens ?"
-          : "Même après élargissement, moins de cinq concerts renseignés sont disponibles.";
+          ? "Fewer than five documented concerts were found in the last twelve months. Search for older concerts?"
+          : "Fewer than five documented concerts are available even after expanding the search.";
         root.append(text("p", message));
         if (source.needsOlderConsent) {
-          const expand = text("button", "Chercher des concerts plus anciens", "primary");
+          const expand = text("button", "Search older concerts", "primary");
           expand.addEventListener("click", () => loadSource({ ...criteria, allowOlder: true }));
           root.append(expand);
         }
         if (source.source.count) {
-          const continuePartial = text("button", `Continuer avec ${source.source.count} concert(s)`);
+          const continuePartial = text("button", `Continue with ${source.source.count} concert(s)`);
           continuePartial.addEventListener("click", () => loadSource({ ...criteria, acceptIncomplete: true }));
           root.append(continuePartial);
         }
         return;
       }
-      const next = text("button", "Continuer vers Spotify", "primary");
+      const next = text("button", "Continue to Spotify", "primary");
       next.addEventListener("click", beginConnection);
       root.append(next);
     }
@@ -289,11 +301,11 @@
         const status = await request("/api/status");
         state.connected = status.spotifyConnected;
         if (!status.spotifyConfigured) {
-          $("#connect-status").textContent = "Client ID Spotify indisponible dans cette session. Rechargez Copilot après avoir défini SPOTIFY_CLIENT_ID.";
+          $("#connect-status").textContent = "Spotify Client ID is unavailable in this session. Restart Copilot after setting SPOTIFY_CLIENT_ID.";
           return;
         }
         if (state.connected) {
-          $("#connect-status").textContent = "Spotify est connecté pour cette session.";
+          $("#connect-status").textContent = "Spotify is connected for this session.";
           await loadPlaylists();
           $("#continue-to-selection").disabled = false;
           return;
@@ -302,7 +314,7 @@
         const link = $("#connect-link");
         link.href = authorizationUrl;
         link.hidden = false;
-        $("#connect-status").textContent = "Ouvrez Spotify, autorisez l’accès, puis revenez ici.";
+        $("#connect-status").textContent = "Open Spotify, authorize access, then return here.";
         pollSpotifyConnection();
       } catch (error) {
         showError($("#connect-status"), error);
@@ -317,7 +329,7 @@
           const result = await request("/api/spotify/auth/status");
           if (result.connected) {
             state.connected = true;
-            $("#connect-status").textContent = "Spotify est connecté pour cette session.";
+            $("#connect-status").textContent = "Spotify is connected for this session.";
             $("#connect-link").hidden = true;
             await loadPlaylists();
             $("#continue-to-selection").disabled = false;
@@ -328,7 +340,7 @@
           return;
         }
       }
-      if (!state.connected) $("#connect-status").textContent = "La connexion n’a pas été détectée. Réessayez si nécessaire.";
+      if (!state.connected) $("#connect-status").textContent = "The connection was not detected. Try again if necessary.";
     }
 
     async function loadPlaylists() {
@@ -355,7 +367,7 @@
         state.playlistOrderStatus = "ready";
       } catch (error) {
         state.playlistOrderStatus = "error";
-        state.playlistOrderError = error instanceof Error ? error.message : "Erreur inattendue.";
+        state.playlistOrderError = error instanceof Error ? error.message : "Unexpected error.";
       }
       if ($("#target-playlist")) renderPlaylistTarget();
     }
@@ -386,10 +398,11 @@
     }
 
     async function searchSong(song, title = song.title) {
+      const artist = song.cover ? (song.coverArtist ?? "") : song.artist;
       const search = async (queryTitle) => {
         const result = await request("/api/spotify/search", {
           method: "POST",
-          body: JSON.stringify({ title: queryTitle, artist: song.artist }),
+          body: JSON.stringify({ title: queryTitle, artist }),
         });
         return result.tracks;
       };
@@ -399,10 +412,10 @@
       if (!withoutArticle || withoutArticle === title) return tracks;
       const alternatives = await search(withoutArticle);
       const expectedTitle = normalizeSearchValue(withoutArticle);
-      const expectedArtist = normalizeSearchValue(song.artist);
+      const expectedArtist = normalizeSearchValue(artist);
       return alternatives.filter((track) =>
         normalizeSearchValue(track.title).replace(/^(?:the|a|an)\s+/, "") === expectedTitle
-        && track.artists.some((artist) => normalizeSearchValue(artist) === expectedArtist),
+        && (!expectedArtist || track.artists.some((artist) => normalizeSearchValue(artist) === expectedArtist)),
       );
     }
 
@@ -427,7 +440,7 @@
       entry.editing = true;
       const title = value.trim();
       if (!title || title.length > 200) {
-        entry.queryError = "Saisissez un titre de 1 à 200 caractères.";
+        entry.queryError = "Enter a track title between 1 and 200 characters.";
         renderChoiceRows(song.id);
         return;
       }
@@ -443,7 +456,7 @@
         delete entry.error;
       } catch (error) {
         entry.matches = [];
-        entry.error = error instanceof Error ? error.message : "Recherche impossible.";
+        entry.error = error instanceof Error ? error.message : "Search failed.";
       } finally {
         entry.searching = false;
         renderChoiceRows(song.id);
@@ -454,7 +467,7 @@
       const root = $("#song-choices");
       root.replaceChildren();
       $("#continue-to-preview").disabled = true;
-      $("#search-status").textContent = `Recherche dans Spotify (0/${state.source.songs.length})…`;
+      $("#search-status").textContent = `Searching Spotify (0/${state.source.songs.length})…`;
       let completed = 0;
       let cursor = 0;
       const workers = Array.from({ length: Math.min(3, state.source.songs.length) }, async () => {
@@ -467,16 +480,16 @@
             state.choices.set(song.id, entry);
           } catch (error) {
             entry.matches = [];
-            entry.error = error instanceof Error ? error.message : "Recherche impossible.";
+            entry.error = error instanceof Error ? error.message : "Search failed.";
             state.choices.set(song.id, entry);
           }
           completed += 1;
-          $("#search-status").textContent = `Recherche dans Spotify (${completed}/${state.source.songs.length})…`;
+          $("#search-status").textContent = `Searching Spotify (${completed}/${state.source.songs.length})…`;
         }
       });
       await Promise.all(workers);
       renderChoiceRows();
-      $("#search-status").textContent = "Choisissez une version ou décochez les titres à exclure.";
+      $("#search-status").textContent = "Choose a version or uncheck tracks to exclude them.";
     }
 
     function makeChoiceRow(song, entry) {
@@ -486,17 +499,17 @@
       include.type = "checkbox";
       include.checked = entry.include;
       include.disabled = Boolean(entry.searching);
-      include.setAttribute("aria-label", `Inclure ${song.title}`);
+      include.setAttribute("aria-label", `Include ${song.title}`);
       const info = text("div", "", "song-info");
       const title = text("button", entry.queryTitle ?? song.title, "song-title");
       title.type = "button";
       title.hidden = Boolean(entry.editing);
-      title.setAttribute("aria-label", `Modifier le titre recherché pour ${song.title}`);
+      title.setAttribute("aria-label", `Edit the search title for ${song.title}`);
       info.append(title);
       const form = document.createElement("form");
       form.className = "song-edit";
       form.hidden = !entry.editing;
-      const label = text("label", "Modifier le titre recherché");
+      const label = text("label", "Edit search title");
       const query = document.createElement("input");
       query.type = "text";
       query.id = `query-${encodeURIComponent(song.id)}`;
@@ -504,13 +517,13 @@
       query.value = entry.queryDraft ?? entry.queryTitle ?? song.title;
       query.maxLength = 200;
       query.disabled = Boolean(entry.searching);
-      query.setAttribute("aria-label", `Titre recherché pour ${song.title}`);
+      query.setAttribute("aria-label", `Search title for ${song.title}`);
       query.addEventListener("input", () => { entry.queryDraft = query.value; });
       const search = text("button", "", "search-icon");
       search.type = "submit";
       search.disabled = Boolean(entry.searching);
-      search.setAttribute("aria-label", "Rechercher sur Spotify");
-      search.title = "Rechercher sur Spotify";
+      search.setAttribute("aria-label", "Search Spotify");
+      search.title = "Search Spotify";
       search.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><circle cx="10" cy="10" r="6"></circle><path d="m15 15 5 5"></path></svg>';
       form.append(label, query, search);
       title.addEventListener("click", () => {
@@ -531,14 +544,15 @@
         event.preventDefault();
         void researchSong(song, entry, query.value);
       });
-      info.append(form, text("p", `${song.artist}${song.cover ? " · reprise" : ""}`, "song-meta"));
+      const coverLabel = song.cover ? (song.coverArtist ? ` · cover of ${song.coverArtist}` : " · cover") : "";
+      info.append(form, text("p", `${song.artist}${coverLabel}`, "song-meta"));
       if (entry.queryError) info.append(text("p", entry.queryError, "no-results-message"));
-      if (entry.searching) info.append(text("p", "Recherche Spotify en cours…", "muted"));
+      if (entry.searching) info.append(text("p", "Searching Spotify…", "muted"));
       else if (entry.error) info.append(text("p", entry.error, "muted"));
-      else if (!entry.matches.length) info.append(text("p", "Aucun résultat Spotify : décochez ce titre pour continuer.", "no-results-message"));
+      else if (!entry.matches.length) info.append(text("p", "No Spotify results: uncheck this track to continue.", "no-results-message"));
       include.addEventListener("change", () => { entry.include = include.checked; updateSelectionState(); });
       if (entry.searching || !entry.matches.length) {
-        const unavailable = text("button", entry.searching ? "Recherche Spotify en cours…" : entry.error ? "Recherche indisponible" : "Aucune version trouvée", "version-unavailable");
+        const unavailable = text("button", entry.searching ? "Searching Spotify…" : entry.error ? "Search unavailable" : "No versions found", "version-unavailable");
         unavailable.type = "button";
         unavailable.disabled = true;
         info.append(unavailable);
@@ -548,10 +562,10 @@
         const summary = document.createElement("summary");
         const list = document.createElement("fieldset");
         list.className = "version-list";
-        list.append(text("legend", `Versions Spotify pour ${song.title}`));
+        list.append(text("legend", `Spotify versions for ${song.title}`));
         const trackLabel = (track) => track
-          ? `${track.title} — ${track.artists.join(", ")} · ${track.album} (${track.releaseDate.slice(0, 4) || "année inconnue"})`
-          : "Choisir une version…";
+          ? `${track.title} — ${track.artists.join(", ")} · ${track.album} (${track.releaseDate.slice(0, 4) || "unknown year"})`
+          : "Choose a version…";
         const artwork = (track) => {
           const placeholder = () => {
             const element = text("span", "♫", "version-artwork version-artwork-placeholder");
@@ -569,7 +583,7 @@
         };
         const updateSummary = () => {
           const label = trackLabel(entry.track);
-          summary.setAttribute("aria-label", `Version Spotify pour ${song.title} : ${label}`);
+          summary.setAttribute("aria-label", `Spotify version for ${song.title}: ${label}`);
           summary.replaceChildren(artwork(entry.track), text("span", label, "version-label"));
         };
         updateSummary();
@@ -646,7 +660,7 @@
             image.referrerPolicy = "no-referrer";
             album.append(image);
           }
-          album.append(text("h3", `${item.track.album} · ${item.track.releaseDate || "année inconnue"}${item.song.cover ? " · reprises" : ""}`));
+          album.append(text("h3", `${item.track.album} · ${item.track.releaseDate || "unknown year"}${item.song.cover ? " · covers" : ""}`));
           root.append(album);
         }
         const row = text("div", "", "preview-track");
@@ -660,31 +674,31 @@
     function renderPlaylistTarget() {
       const root = $("#playlist-target");
       const previous = root.querySelector("select")?.value ?? "";
-      const label = text("label", "Playlist Spotify privée");
+      const label = text("label", "Private Spotify playlist");
       label.htmlFor = "target-playlist";
       root.replaceChildren(label);
       const select = document.createElement("select");
       select.id = "target-playlist";
-      select.append(new Option("Créer une nouvelle playlist privée", ""));
+      select.append(new Option("Create a new private playlist", ""));
       state.playlists.forEach((playlist) => {
-        const unknown = state.playlistOrderStatus === "ready" && playlist.lastAddedAt === null ? " · date inconnue" : "";
-        select.append(new Option(`Remplacer « ${playlist.name} » (${playlist.tracks} titres)${unknown}`, playlist.id));
+        const unknown = state.playlistOrderStatus === "ready" && playlist.lastAddedAt === null ? " · unknown date" : "";
+        select.append(new Option(`Replace “${playlist.name}” (${playlist.tracks} tracks)${unknown}`, playlist.id));
       });
       if (state.playlists.some((playlist) => playlist.id === previous)) select.value = previous;
       select.addEventListener("change", () => renderConfirmation());
       root.append(select);
       if (state.playlistOrderStatus !== "idle") {
         const message = state.playlistOrderStatus === "loading"
-          ? "Classement des playlists selon le dernier titre ajouté en cours…"
+          ? "Sorting playlists by their latest track addition…"
           : state.playlistOrderStatus === "ready"
-            ? "Playlists classées selon le dernier titre ajouté ; dates inconnues en dernier."
-            : `Tri des playlists indisponible : ${state.playlistOrderError} Leur ordre peut être incomplet.`;
+            ? "Playlists sorted by latest track addition; unknown dates last."
+            : `Playlist sorting unavailable: ${state.playlistOrderError} The order may be incomplete.`;
         const status = text("p", message, "muted");
         status.setAttribute("role", "status");
         root.append(status);
       }
       if (state.playlistOrderStatus === "error") {
-        const retry = text("button", "Réessayer le tri");
+        const retry = text("button", "Retry sorting");
         retry.type = "button";
         retry.addEventListener("click", () => { void loadPlaylistActivity(); });
         root.append(retry);
@@ -694,13 +708,13 @@
     function renderConfirmation() {
       const selection = $("#target-playlist");
       const chosen = state.playlists.find((playlist) => playlist.id === selection?.value);
-      const name = chosen?.name ?? `En attendant ${state.source.artist}`;
+      const name = chosen?.name ?? `Waiting for ${state.source.artist}`;
       const tracks = selectedTracks();
-      $("#confirm-heading").textContent = chosen ? "Remplacer cette playlist ?" : "Créer une playlist privée ?";
-      $("#confirm-summary").textContent = `${tracks.length} titres sélectionnés pour « ${name} ».`;
+      $("#confirm-heading").textContent = chosen ? "Replace this playlist?" : "Create a private playlist?";
+      $("#confirm-summary").textContent = `${tracks.length} tracks selected for “${name}”.`;
       $("#confirm-warning").textContent = chosen
-        ? "Cette action remplacera tous les titres de cette playlist privée; seuls les titres de l’aperçu confirmé resteront."
-        : "La nouvelle playlist sera privée. Rien ne sera écrit sans ce clic de confirmation.";
+        ? "This will replace every track in the private playlist; only tracks in the confirmed preview will remain."
+        : "The new playlist will be private. Nothing will be written until you confirm.";
       if (!state.saving) {
         $("#save-playlist").disabled = false;
         $("#save-status").textContent = "";
@@ -716,19 +730,19 @@
       button.disabled = true;
       back.disabled = true;
       let saved = false;
-      $("#save-status").textContent = "Enregistrement dans Spotify…";
+      $("#save-status").textContent = "Saving to Spotify…";
       $("#playlist-link").hidden = true;
       try {
         const selection = $("#target-playlist");
         const result = await request("/api/spotify/playlist", {
           method: "POST",
           body: JSON.stringify({
-            name: `En attendant ${state.source.artist}`,
+            name: `Waiting for ${state.source.artist}`,
             playlistId: selection.value,
             tracks: selectedTracks().map((item) => item.track.uri),
           }),
         });
-        $("#save-status").textContent = "Playlist enregistrée.";
+        $("#save-status").textContent = "Playlist saved.";
         const link = $("#playlist-link");
         link.href = result.url;
         link.hidden = false;
@@ -746,7 +760,7 @@
       const version = state.artistSearchVersion;
       const button = $("#load-source");
       button.disabled = true;
-      $("#source-result").replaceChildren(text("p", "Chargement des setlists…", "muted"));
+      $("#source-result").replaceChildren(text("p", "Loading setlists…", "muted"));
       state.source = null;
       state.choices.clear();
       try {
@@ -782,10 +796,10 @@
       $("#artist-results").hidden = true;
       const status = $("#artist-search-status");
       if (!name || name.length > 200) {
-        status.textContent = "Saisissez un nom d’artiste de 1 à 200 caractères.";
+        status.textContent = "Enter an artist name between 1 and 200 characters.";
         return;
       }
-      status.textContent = "Recherche des artistes…";
+      status.textContent = "Searching for artists…";
       try {
         const result = await request("/api/artists/search", {
           method: "POST", body: JSON.stringify({ name }),
@@ -793,11 +807,11 @@
         if (version !== state.artistSearchVersion) return;
         state.artists = result.artists;
         if (!result.artists.length) {
-          status.textContent = "Aucun artiste trouvé. Modifiez la recherche.";
+          status.textContent = "No artists found. Try a different search.";
           return;
         }
         const select = $("#artist-choice");
-        select.replaceChildren(new Option("Sélectionnez un artiste", ""));
+        select.replaceChildren(new Option("Select an artist", ""));
         const labels = result.artists.map((artist) => `${artist.name}${artist.disambiguation ? ` · ${artist.disambiguation}` : ""}`);
         result.artists.forEach((artist, index) => {
           const label = labels.filter((value) => value === labels[index]).length > 1
@@ -806,8 +820,8 @@
         });
         $("#artist-results").hidden = false;
         status.textContent = result.total > result.artists.length
-          ? `${result.artists.length} premiers résultats sur ${result.total}. Précisez la recherche si nécessaire.`
-          : `${result.artists.length} artiste(s) trouvé(s). Choisissez-en un.`;
+          ? `Showing the first ${result.artists.length} of ${result.total} results. Refine your search if needed.`
+          : `${result.artists.length} artist(s) found. Choose one.`;
       } catch (error) {
         if (version === state.artistSearchVersion) showError(status, error);
       }

@@ -11,6 +11,8 @@ Si les résultats sont nombreux, préciser le nom pour affiner la recherche.
 
 La source retient jusqu'à cinq concerts renseignés sur les douze derniers mois,
 en privilégiant la tournée la plus récente lorsqu'elle comporte cinq concerts.
+Chaque concert retenu comporte un lien vers setlist.fm ; l'ouvrir peut révéler
+l'ordre du concert.
 Si elle en contient moins, les cinq concerts renseignés les plus récents sont
 utilisés. Les titres sont dédoublonnés et présentés par ordre alphabétique
 avant leur classement par album, jamais dans l'ordre des concerts. Si moins de
@@ -23,13 +25,15 @@ recherches de la préparation, est présélectionnée. En cas d'égalité, la pr
 proposition Spotify est retenue. Les choix manuels sont conservés et les titres
 sans résultat sont mis en évidence ; une erreur de recherche reste distincte.
 Le menu de sélection affiche les pochettes Spotify disponibles pour chaque version.
+Pour une reprise, la recherche utilise l'artiste d'origine indiqué par setlist.fm
+ou uniquement le titre si cet artiste est absent ou ambigu.
 Chaque titre peut être corrigé dans la sélection et relancé sur Spotify sans
 modifier son nom dans la setlist d'origine : cliquer sur le titre révèle le
 champ et sa loupe de recherche. Échap annule l'édition ; une recherche réussie
 replie le champ, tandis qu'une absence de résultat le laisse ouvert.
 Si une recherche reste vide, un article anglais initial (`The`, `A`, `An`)
-est retiré pour un second essai. Seuls les résultats dont le titre et l'artiste
-correspondent après normalisation sont conservés.
+est retiré pour un second essai. Seuls les résultats dont le titre et, lorsqu'il
+est connu, l'artiste correspondent après normalisation sont conservés.
 Dans l'aperçu, les playlists privées proposées pour remplacement sont classées
 selon la date du dernier titre ajouté, de la plus récente à la plus ancienne.
 Ce n'est pas leur date de création, que Spotify ne fournit pas. Les playlists
