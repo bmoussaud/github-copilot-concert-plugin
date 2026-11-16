@@ -149,7 +149,7 @@
 
     <section data-step="source">
       <h2>Choose the setlist.fm source</h2>
-      <p class="muted">Songs from the five selected concerts are deduplicated and displayed without their concert order.</p>
+      <p class="muted">Songs from the selected concerts are deduplicated and displayed without their concert order.</p>
       <label for="artist-name">Search for an artist</label>
       <input id="artist-name" type="search" maxlength="200" autocomplete="off">
       <button id="search-artists" type="button">Search</button>
@@ -158,6 +158,10 @@
         <label for="artist-choice">Choose an artist</label>
         <select id="artist-choice"></select>
       </div>
+      <label for="concert-count">Number of concerts</label>
+      <input id="concert-count" type="number" min="1" max="25" step="1" value="5" required aria-describedby="concert-count-hint concert-count-status">
+      <p id="concert-count-hint" class="muted">Choose 1 to 25 concerts. The default is 5.</p>
+      <p id="concert-count-status" role="status" aria-live="polite"></p>
       <button class="primary" id="load-source" disabled>Load recent setlists</button>
       <div id="source-result" aria-live="polite"></div>
     </section>
@@ -165,7 +169,7 @@
     <section data-step="connect" hidden>
       <h2>Connect to Spotify</h2>
       <p>Spotify is used only to search for versions and save your chosen private playlist.</p>
-      <p class="muted">Requested permissions: view your private playlists and create or modify a private playlist.</p>
+      <p class="muted">Requested permission: create and modify private playlists. This app only creates new playlists.</p>
       <a class="button-link primary" id="connect-link" target="_blank" rel="noopener noreferrer" hidden>Connect to Spotify</a>
       <p id="connect-status" role="status" aria-live="polite"></p>
       <button data-back="source">Back</button>
@@ -184,7 +188,6 @@
     <section data-step="preview" hidden>
       <h2>Preview by album</h2>
       <p class="muted">Albums are ordered newest to oldest, with covers at the end. Concert order is not used.</p>
-      <div id="playlist-target"></div>
       <div id="playlist-preview"></div>
       <button data-back="selection">Back to selection</button>
       <button class="primary" id="continue-to-confirm" disabled>Continue to confirmation</button>
@@ -193,9 +196,13 @@
     <section data-step="confirm" hidden>
       <h2 id="confirm-heading">Confirm</h2>
       <div id="confirm-summary"></div>
+      <div id="date-option">
+        <label><input id="include-date" type="checkbox"> Add today's date (YYYYMMDD) to the new playlist name</label>
+      </div>
       <p id="confirm-warning" class="notice" role="note"></p>
       <button data-back="preview">Back to preview</button>
       <button class="primary" id="save-playlist">Confirm and save</button>
+      <button type="button" id="restart-preparation">Start a new preparation</button>
       <p id="save-status" role="status" aria-live="polite"></p>
       <a id="playlist-link" target="_blank" rel="noopener noreferrer" hidden>Open playlist in Spotify</a>
     </section>
@@ -203,8 +210,9 @@
 
   <script>
     const state = {
-      source: null, choices: new Map(), playlists: [], connected: false, saving: false,
-      playlistOrderStatus: "idle", playlistOrderError: "", artists: [], selectedArtist: null, artistSearchVersion: 0,
+      source: null, choices: new Map(), connected: false, saving: false,
+      artists: [], selectedArtist: null, artistSearchVersion: 0, sourceVersion: 0,
+      confirmedName: "",
     };
     const sections = [...document.querySelectorAll("[data-step]")];
     const indicators = [...document.querySelectorAll(".steps li")];
@@ -274,8 +282,8 @@
       root.append(list, text("p", "Setlist links open the full concert setlist and may reveal the running order.", "muted"));
       if (source.needsOlderConsent || source.needsIncompleteConsent) {
         const message = source.needsOlderConsent
-          ? "Fewer than five documented concerts were found in the last twelve months. Search for older concerts?"
-          : "Fewer than five documented concerts are available even after expanding the search.";
+          ? `Fewer than ${criteria.concertCount ?? 5} documented concerts were found in the last twelve months. Search for older concerts?`
+          : `Fewer than ${criteria.concertCount ?? 5} documented concerts are available even after expanding the search.`;
         root.append(text("p", message));
         if (source.needsOlderConsent) {
           const expand = text("button", "Search older concerts", "primary");
@@ -306,7 +314,6 @@
         }
         if (state.connected) {
           $("#connect-status").textContent = "Spotify is connected for this session.";
-          await loadPlaylists();
           $("#continue-to-selection").disabled = false;
           return;
         }
@@ -331,7 +338,6 @@
             state.connected = true;
             $("#connect-status").textContent = "Spotify is connected for this session.";
             $("#connect-link").hidden = true;
-            await loadPlaylists();
             $("#continue-to-selection").disabled = false;
             return;
           }
@@ -341,35 +347,6 @@
         }
       }
       if (!state.connected) $("#connect-status").textContent = "The connection was not detected. Try again if necessary.";
-    }
-
-    async function loadPlaylists() {
-      const result = await request("/api/spotify/playlists");
-      state.playlists = result.playlists;
-      void loadPlaylistActivity();
-    }
-
-    async function loadPlaylistActivity() {
-      if (state.playlistOrderStatus === "loading") return;
-      state.playlistOrderStatus = "loading";
-      state.playlistOrderError = "";
-      if ($("#target-playlist")) renderPlaylistTarget();
-      try {
-        const result = await request("/api/spotify/playlists/activity");
-        const existing = new Map(state.playlists.map((playlist) => [playlist.id, playlist]));
-        const ordered = result.playlists.map((playlist) => {
-          const previous = existing.get(playlist.id);
-          existing.delete(playlist.id);
-          return previous ? { ...previous, lastAddedAt: playlist.lastAddedAt } : playlist;
-        });
-        // Keep a selected target even if Spotify's list changes during sorting.
-        state.playlists = [...ordered, ...[...existing.values()].map((playlist) => ({ ...playlist, lastAddedAt: null }))];
-        state.playlistOrderStatus = "ready";
-      } catch (error) {
-        state.playlistOrderStatus = "error";
-        state.playlistOrderError = error instanceof Error ? error.message : "Unexpected error.";
-      }
-      if ($("#target-playlist")) renderPlaylistTarget();
     }
 
     function countProposals(entries) {
@@ -667,56 +644,22 @@
         row.append(text("span", `${item.track.title} — ${item.track.artists.join(", ")}`));
         root.append(row);
       }
-      renderPlaylistTarget();
       $("#continue-to-confirm").disabled = !tracks.length;
     }
 
-    function renderPlaylistTarget() {
-      const root = $("#playlist-target");
-      const previous = root.querySelector("select")?.value ?? "";
-      const label = text("label", "Private Spotify playlist");
-      label.htmlFor = "target-playlist";
-      root.replaceChildren(label);
-      const select = document.createElement("select");
-      select.id = "target-playlist";
-      select.append(new Option("Create a new private playlist", ""));
-      state.playlists.forEach((playlist) => {
-        const unknown = state.playlistOrderStatus === "ready" && playlist.lastAddedAt === null ? " · unknown date" : "";
-        select.append(new Option(`Replace “${playlist.name}” (${playlist.tracks} tracks)${unknown}`, playlist.id));
-      });
-      if (state.playlists.some((playlist) => playlist.id === previous)) select.value = previous;
-      select.addEventListener("change", () => renderConfirmation());
-      root.append(select);
-      if (state.playlistOrderStatus !== "idle") {
-        const message = state.playlistOrderStatus === "loading"
-          ? "Sorting playlists by their latest track addition…"
-          : state.playlistOrderStatus === "ready"
-            ? "Playlists sorted by latest track addition; unknown dates last."
-            : `Playlist sorting unavailable: ${state.playlistOrderError} The order may be incomplete.`;
-        const status = text("p", message, "muted");
-        status.setAttribute("role", "status");
-        root.append(status);
-      }
-      if (state.playlistOrderStatus === "error") {
-        const retry = text("button", "Retry sorting");
-        retry.type = "button";
-        retry.addEventListener("click", () => { void loadPlaylistActivity(); });
-        root.append(retry);
-      }
-    }
-
     function renderConfirmation() {
-      const selection = $("#target-playlist");
-      const chosen = state.playlists.find((playlist) => playlist.id === selection?.value);
-      const name = chosen?.name ?? `Waiting for ${state.source.artist}`;
+      const today = new Date();
+      const date = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`;
+      const baseName = `Waiting for ${state.source.artist}`;
+      const name = `${baseName}${$("#include-date").checked ? ` ${date}` : ""}`;
+      state.confirmedName = name;
       const tracks = selectedTracks();
-      $("#confirm-heading").textContent = chosen ? "Replace this playlist?" : "Create a private playlist?";
+      $("#confirm-heading").textContent = "Create a private playlist?";
       $("#confirm-summary").textContent = `${tracks.length} tracks selected for “${name}”.`;
-      $("#confirm-warning").textContent = chosen
-        ? "This will replace every track in the private playlist; only tracks in the confirmed preview will remain."
-        : "The new playlist will be private. Nothing will be written until you confirm.";
+      $("#confirm-warning").textContent = "The new playlist will be private. Nothing will be written until you confirm.";
       if (!state.saving) {
         $("#save-playlist").disabled = false;
+        $("#include-date").disabled = false;
         $("#save-status").textContent = "";
         $("#playlist-link").hidden = true;
       }
@@ -726,19 +669,21 @@
       if (state.saving) return;
       const button = $("#save-playlist");
       const back = document.querySelector('[data-step="confirm"] [data-back]');
+      const restart = $("#restart-preparation");
+      const dateOption = $("#include-date");
       state.saving = true;
       button.disabled = true;
       back.disabled = true;
+      restart.disabled = true;
+      dateOption.disabled = true;
       let saved = false;
       $("#save-status").textContent = "Saving to Spotify…";
       $("#playlist-link").hidden = true;
       try {
-        const selection = $("#target-playlist");
         const result = await request("/api/spotify/playlist", {
           method: "POST",
           body: JSON.stringify({
-            name: `Waiting for ${state.source.artist}`,
-            playlistId: selection.value,
+            name: state.confirmedName,
             tracks: selectedTracks().map((item) => item.track.uri),
           }),
         });
@@ -752,12 +697,51 @@
       } finally {
         state.saving = false;
         back.disabled = false;
+        restart.disabled = false;
+        dateOption.disabled = saved;
         if (!saved) button.disabled = false;
       }
     }
 
+    function restartPreparation() {
+      if (state.saving) return;
+      state.artistSearchVersion++;
+      clearSource();
+      state.artists = [];
+      state.selectedArtist = null;
+      state.confirmedName = "";
+      $("#artist-name").value = "";
+      $("#artist-heading").textContent = "your artist";
+      $("#artist-search-status").textContent = "";
+      $("#artist-results").hidden = true;
+      $("#artist-choice").replaceChildren();
+      $("#concert-count").value = "5";
+      $("#concert-count").setAttribute("aria-invalid", "false");
+      $("#concert-count-status").textContent = "";
+      $("#load-source").disabled = true;
+      $("#connect-link").hidden = true;
+      $("#connect-status").textContent = "";
+      $("#continue-to-selection").disabled = true;
+      $("#song-choices").replaceChildren();
+      $("#search-status").textContent = "";
+      $("#continue-to-preview").disabled = true;
+      $("#playlist-preview").replaceChildren();
+      $("#continue-to-confirm").disabled = true;
+      $("#include-date").checked = false;
+      $("#include-date").disabled = false;
+      $("#date-option").hidden = false;
+      $("#confirm-summary").textContent = "";
+      $("#confirm-warning").textContent = "";
+      $("#save-status").textContent = "";
+      $("#save-playlist").disabled = false;
+      $("#playlist-link").hidden = true;
+      $("#playlist-link").removeAttribute("href");
+      showStep("source");
+    }
+
     async function loadSource(criteria) {
-      const version = state.artistSearchVersion;
+      clearSource();
+      const version = state.sourceVersion;
       const button = $("#load-source");
       button.disabled = true;
       $("#source-result").replaceChildren(text("p", "Loading setlists…", "muted"));
@@ -768,22 +752,33 @@
           method: "POST",
           body: JSON.stringify(criteria),
         });
-        if (version !== state.artistSearchVersion) return;
+        if (version !== state.sourceVersion) return;
         state.source = result;
         state.choices = new Map(result.songs.map((song) => [song.id, { include: true, track: null, matches: [] }]));
         $("#artist-heading").textContent = result.artist;
         renderSource(result, criteria);
       } catch (error) {
-        if (version === state.artistSearchVersion) showError($("#source-result"), error);
+        if (version === state.sourceVersion) showError($("#source-result"), error);
       } finally {
-        if (version === state.artistSearchVersion) button.disabled = !state.selectedArtist;
+        if (version === state.sourceVersion) updateSourceButton();
       }
     }
 
     function clearSource() {
+      state.sourceVersion++;
       state.source = null;
       state.choices.clear();
       $("#source-result").replaceChildren();
+    }
+
+    function selectedConcertCount() {
+      const value = $("#concert-count").value.trim();
+      const count = value ? Number(value) : NaN;
+      return Number.isInteger(count) && count >= 1 && count <= 25 ? count : null;
+    }
+
+    function updateSourceButton() {
+      $("#load-source").disabled = !state.selectedArtist || selectedConcertCount() === null;
     }
 
     async function findArtists() {
@@ -844,12 +839,25 @@
       state.artistSearchVersion++;
       clearSource();
       state.selectedArtist = state.artists.find((artist) => artist.mbid === event.target.value) ?? null;
-      $("#load-source").disabled = !state.selectedArtist;
+      updateSourceButton();
+    });
+    $("#concert-count").addEventListener("input", () => {
+      clearSource();
+      const invalid = selectedConcertCount() === null;
+      $("#concert-count").setAttribute("aria-invalid", String(invalid));
+      $("#concert-count-status").textContent = invalid ? "Choose a whole number of concerts between 1 and 25." : "";
+      updateSourceButton();
     });
     $("#load-source").addEventListener("click", () => {
+      const concertCount = selectedConcertCount();
+      if (concertCount === null) {
+        $("#concert-count-status").textContent = "Choose a whole number of concerts between 1 and 25.";
+        return;
+      }
       if (state.selectedArtist) void loadSource({
         artistMbid: state.selectedArtist.mbid,
         artistName: state.selectedArtist.name,
+        concertCount,
       });
     });
 
@@ -860,6 +868,8 @@
     });
     $("#continue-to-preview").addEventListener("click", () => { renderPreview(); showStep("preview"); });
     $("#continue-to-confirm").addEventListener("click", () => { renderConfirmation(); showStep("confirm"); });
+    $("#include-date").addEventListener("change", renderConfirmation);
+    $("#restart-preparation").addEventListener("click", restartPreparation);
     $("#save-playlist").addEventListener("click", savePlaylist);
     document.querySelectorAll("[data-back]").forEach((button) => {
       button.addEventListener("click", () => showStep(button.dataset.back));

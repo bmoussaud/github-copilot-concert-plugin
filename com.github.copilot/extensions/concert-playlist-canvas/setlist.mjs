@@ -1,5 +1,4 @@
 const ARTIST_MBID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const TARGET_SHOWS = 5;
 const MAX_PAGES = 25;
 
 export async function searchArtists({ name, apiKey, fetchImpl = fetch }) {
@@ -88,6 +87,7 @@ export async function loadSetlistSource({
     artistMbid,
     requestedArtist,
     apiKey,
+    concertCount = 5,
     allowOlder = false,
     acceptIncomplete = false,
     fetchImpl = fetch,
@@ -95,6 +95,9 @@ export async function loadSetlistSource({
 }) {
     if (!apiKey?.trim()) throw new Error("SETLISTFM_API_KEY is missing from the environment approved by Copilot.");
     if (!ARTIST_MBID.test(artistMbid)) throw new Error("Invalid MusicBrainz MBID.");
+    if (!Number.isInteger(concertCount) || concertCount < 1 || concertCount > 25) {
+        throw new Error("Choose a whole number of concerts between 1 and 25.");
+    }
 
     const cutoff = annualCutoff(now);
     const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
@@ -136,7 +139,7 @@ export async function loadSetlistSource({
         candidates.sort((a, b) => b.date - a.date);
         const tour = candidates[0]?.item.tour?.name?.trim();
         const matches = tour ? candidates.filter(({ item }) => item.tour?.name?.trim() === tour) : [];
-        const enough = tour ? matches.length >= TARGET_SHOWS : candidates.length >= TARGET_SHOWS;
+        const enough = tour ? matches.length >= concertCount : candidates.length >= concertCount;
         const total = Number(payload.total);
         const pageSize = Number(payload.itemsPerPage);
         const exhausted = !rawSetlists.length
@@ -152,8 +155,8 @@ export async function loadSetlistSource({
 
     const tour = candidates[0]?.item.tour?.name?.trim();
     const tourMatches = tour ? candidates.filter(({ item }) => item.tour?.name?.trim() === tour) : [];
-    const useTour = tourMatches.length >= TARGET_SHOWS;
-    const selected = (useTour ? tourMatches : candidates).slice(0, TARGET_SHOWS).map(({ item }) => item);
+    const useTour = tourMatches.length >= concertCount;
+    const selected = (useTour ? tourMatches : candidates).slice(0, concertCount).map(({ item }) => item);
     if (!selected.length && acceptIncomplete) {
         throw new Error("No concerts with usable songs were found.");
     }
@@ -182,11 +185,11 @@ export async function loadSetlistSource({
     const songs = [...songsByKey.values()].sort((a, b) =>
         collator.compare(a.title, b.title) || collator.compare(a.artist, b.artist) || a.id.localeCompare(b.id),
     );
-    const incomplete = selected.length < TARGET_SHOWS && !acceptIncomplete;
+    const incomplete = selected.length < concertCount && !acceptIncomplete;
     return {
         artist,
         source: {
-            method: useTour ? `Five concerts from the tour: ${tour}` : "Most recent documented concerts",
+            method: useTour ? `${concertCount} concert(s) from the tour: ${tour}` : "Most recent documented concerts",
             period: allowOlder ? "Search expanded to older concerts" : "Last twelve months",
             shows: selected.map(summarizeShow),
             count: selected.length,

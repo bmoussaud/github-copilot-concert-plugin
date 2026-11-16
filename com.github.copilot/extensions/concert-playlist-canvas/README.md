@@ -2,21 +2,27 @@
 
 Cette extension Canvas sert l'interface locale `app.html` et son API locale
 depuis `extension.mjs`. Elle récupère les setlists par MBID auprès de setlist.fm,
-permet de choisir les versions du catalogue Spotify et crée ou remplace une
+permet de choisir les versions du catalogue Spotify et crée une nouvelle
 playlist Spotify **privée** après confirmation explicite.
+À la confirmation, l'option facultative **Add today's date** ajoute la date
+locale du jour au format `YYYYMMDD` au nom d'une nouvelle playlist uniquement.
+**Start a new preparation** remet la préparation à zéro sans écriture Spotify
+et conserve la connexion existante.
 
 L'artiste est recherché par son nom sur setlist.fm, puis choisi dans la liste
 des correspondances : son identifiant MusicBrainz est récupéré automatiquement.
 Si les résultats sont nombreux, préciser le nom pour affiner la recherche.
 
-La source retient jusqu'à cinq concerts renseignés sur les douze derniers mois,
-en privilégiant la tournée la plus récente lorsqu'elle comporte cinq concerts.
+Le champ **Number of concerts** permet de choisir entre 1 et 25 concerts
+(5 par défaut). La source retient jusqu'au nombre choisi de concerts renseignés
+sur les douze derniers mois, en privilégiant la tournée la plus récente
+lorsqu'elle comporte suffisamment de concerts.
 Chaque concert retenu comporte un lien vers setlist.fm ; l'ouvrir peut révéler
 l'ordre du concert.
-Si elle en contient moins, les cinq concerts renseignés les plus récents sont
+Si elle en contient moins, les concerts renseignés les plus récents sont
 utilisés. Les titres sont dédoublonnés et présentés par ordre alphabétique
-avant leur classement par album, jamais dans l'ordre des concerts. Si moins de
-cinq concerts sont disponibles, l'interface demande l'accord de l'utilisateur
+avant leur classement par album, jamais dans l'ordre des concerts. Si le nombre
+de concerts disponibles est inférieur au nombre demandé, l'interface demande l'accord de l'utilisateur
 avant d'élargir la recherche ou de continuer avec une couverture incomplète.
 Les correspondances proposées doivent être vérifiées : le catalogue ne permet
 pas de garantir automatiquement qu'il s'agit de la version studio d'origine.
@@ -34,13 +40,6 @@ replie le champ, tandis qu'une absence de résultat le laisse ouvert.
 Si une recherche reste vide, un article anglais initial (`The`, `A`, `An`)
 est retiré pour un second essai. Seuls les résultats dont le titre et, lorsqu'il
 est connu, l'artiste correspondent après normalisation sont conservés.
-Dans l'aperçu, les playlists privées proposées pour remplacement sont classées
-selon la date du dernier titre ajouté, de la plus récente à la plus ancienne.
-Ce n'est pas leur date de création, que Spotify ne fournit pas. Les playlists
-vides ou comportant des dates d'ajout manquantes sont placées en dernier. Le
-classement charge uniquement les dates d'ajout et s'effectue pendant la
-sélection ; en cas d'échec, l'interface le signale et permet de réessayer.
-
 ## Configuration
 
 - Définir `SETLISTFM_API_KEY` dans l'environnement utilisateur. Copilot demande
@@ -51,15 +50,16 @@ sélection ; en cas d'échec, l'interface le signale et permet de réessayer.
   `http://127.0.0.1:43821/callback` comme Redirect URI.
 - Recharger Copilot après avoir modifié les variables d'environnement.
 
-La connexion Spotify utilise les portées `user-read-private`,
-`playlist-read-private` et `playlist-modify-private`. Les jetons restent en
+La connexion Spotify utilise la portée `playlist-modify-private`, qui autorise
+la création et la modification de playlists privées, même si cette extension
+ne crée que de nouvelles playlists. Les jetons restent en
 mémoire dans le processus local de l'extension et sont supprimés à sa fermeture.
 Le serveur ne se lie qu'à `127.0.0.1`. L'action Copilot ne retourne aucun titre,
 résultat Spotify, URI, jeton ni ordre de concert; ces données restent dans le
 Canvas et le processus local. Seul un aperçu trié par albums peut être enregistré.
 Les requêtes de modification de l'API locale exigent une origine identique à
 celle du Canvas et un corps JSON. Une écriture Spotify interrompue peut laisser
-une playlist partiellement modifiée; l'interface invite à la vérifier avant
+une playlist vide ou incomplète; l'interface invite à la vérifier avant
 de réessayer.
 
 `prototypes/anti-spoiler-flow.html` reste la maquette statique de présentation;

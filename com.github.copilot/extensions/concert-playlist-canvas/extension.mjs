@@ -5,22 +5,18 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createCanvas, joinSession } from "@github/copilot-sdk/extension";
 import { rejectUntrustedRequest } from "./http-security.mjs";
-import { orderPlaylistsByLatestAddition } from "./playlist-activity.mjs";
 import { loadSetlistSource, searchArtists } from "./setlist.mjs";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const APP_PATH = join(ROOT, "app.html");
 const SPOTIFY_REDIRECT_URI = "http://127.0.0.1:43821/callback";
 const SPOTIFY_SCOPES = [
-    "user-read-private",
-    "playlist-read-private",
     "playlist-modify-private",
 ].join(" ");
 const servers = new Map();
 const pendingAuthorizations = new Map();
 let callbackServer;
 let spotifyTokens = null;
-let spotifyUserId = null;
 let spotifyRefreshPromise = null;
 
 function json(res, status, value) {
@@ -104,7 +100,6 @@ async function exchangeAuthorizationCode(code, state) {
         expiresAt: Date.now() + result.expires_in * 1000,
         clientId: pending.clientId,
     };
-    spotifyUserId = null;
 }
 
 async function handleSpotifyCallback(req, res) {
@@ -205,7 +200,6 @@ async function refreshSpotifyTokenOnce() {
     });
     if (!response.ok) {
         spotifyTokens = null;
-        spotifyUserId = null;
         throw new Error("Your Spotify session has expired. Reconnect.");
     }
     const result = await response.json();
@@ -246,31 +240,6 @@ async function spotifyFetch(path, options = {}, retried = false) {
     return response.json();
 }
 
-async function getSpotifyUser() {
-    if (!spotifyUserId) {
-        const profile = await spotifyFetch("/me");
-        if (typeof profile?.id !== "string" || !profile.id) throw new Error("Incomplete Spotify profile.");
-        spotifyUserId = profile.id;
-    }
-    return spotifyUserId;
-}
-
-async function getOwnedPrivatePlaylists() {
-    const userId = await getSpotifyUser();
-    const playlists = [];
-    for (let offset = 0; offset <= 100_000; offset += 50) {
-        const page = await spotifyFetch(`/me/playlists?limit=50&offset=${offset}`);
-        if (!Array.isArray(page.items)) throw new Error("Invalid Spotify playlist response.");
-        const items = page.items;
-        playlists.push(...items
-            .filter((item) => item.owner?.id === userId && item.public === false)
-            .map((item) => ({ id: item.id, name: item.name, tracks: item.items?.total ?? item.tracks?.total ?? 0 })));
-        if (!page.next) return playlists;
-        if (!items.length) throw new Error("Spotify playlist pagination is incomplete.");
-    }
-    throw new Error("The Spotify playlist list exceeds the pagination limit.");
-}
-
 async function routeApi(req, res, url) {
     if (req.method === "GET" && url.pathname === "/api/status") {
         return sendJson(res, 200, {
@@ -289,6 +258,7 @@ async function routeApi(req, res, url) {
         const result = await loadSetlistSource({
             artistMbid: String(body.artistMbid ?? "").trim(),
             requestedArtist: String(body.artistName ?? "").trim(),
+            concertCount: body.concertCount,
             apiKey: process.env.SETLISTFM_API_KEY,
             allowOlder: body.allowOlder === true,
             acceptIncomplete: body.acceptIncomplete === true,
@@ -332,17 +302,12 @@ async function routeApi(req, res, url) {
             })),
         });
     }
-    if (req.method === "GET" && url.pathname === "/api/spotify/playlists") {
-        return sendJson(res, 200, { playlists: await getOwnedPrivatePlaylists() });
-    }
-    if (req.method === "GET" && url.pathname === "/api/spotify/playlists/activity") {
-        const playlists = await getOwnedPrivatePlaylists();
-        return sendJson(res, 200, { playlists: await orderPlaylistsByLatestAddition(playlists, spotifyFetch) });
-    }
     if (req.method === "POST" && url.pathname === "/api/spotify/playlist") {
         const body = await readJson(req);
         const name = String(body.name ?? "").trim();
-        const playlistId = String(body.playlistId ?? "").trim();
+        if (body.playlistId !== undefined && body.playlistId !== "") {
+            throw new Error("Updating an existing playlist is not supported.");
+        }
         const tracks = body.tracks;
         if (!name || name.length > 100) throw new Error("Invalid playlist name.");
         if (!Array.isArray(tracks) || tracks.length < 1 || tracks.length > 1000) {
@@ -353,30 +318,8 @@ async function routeApi(req, res, url) {
         }
 
         let playlist;
-        if (playlistId) {
-            if (!/^[A-Za-z0-9]{22}$/.test(playlistId)) throw new Error("Invalid playlist ID.");
-            const owned = await getOwnedPrivatePlaylists();
-            if (!owned.some((item) => item.id === playlistId)) {
-                throw new Error("This is not a private playlist owned by your account.");
-            }
-            playlist = { id: playlistId };
-            try {
-                await spotifyFetch(`/playlists/${playlistId}/items`, {
-                    method: "PUT",
-                    body: JSON.stringify({ uris: tracks.slice(0, 100) }),
-                });
-                for (let offset = 100; offset < tracks.length; offset += 100) {
-                    await spotifyFetch(`/playlists/${playlistId}/items`, {
-                        method: "POST",
-                        body: JSON.stringify({ uris: tracks.slice(offset, offset + 100) }),
-                    });
-                }
-            } catch (error) {
-                throw new Error(`Save interrupted: the playlist may have been partially modified. Check it before retrying. ${errorMessage(error)}`);
-            }
-        } else {
-            try {
-                playlist = await spotifyFetch("/me/playlists", {
+        try {
+            playlist = await spotifyFetch("/me/playlists", {
                     method: "POST",
                     body: JSON.stringify({
                         name,
@@ -384,16 +327,15 @@ async function routeApi(req, res, url) {
                         public: false,
                         collaborative: false,
                     }),
+            });
+            for (let offset = 0; offset < tracks.length; offset += 100) {
+                await spotifyFetch(`/playlists/${playlist.id}/items`, {
+                    method: "POST",
+                    body: JSON.stringify({ uris: tracks.slice(offset, offset + 100) }),
                 });
-                for (let offset = 0; offset < tracks.length; offset += 100) {
-                    await spotifyFetch(`/playlists/${playlist.id}/items`, {
-                        method: "POST",
-                        body: JSON.stringify({ uris: tracks.slice(offset, offset + 100) }),
-                    });
-                }
-            } catch (error) {
-                throw new Error(`Save interrupted: an empty or incomplete playlist may have been created. Check Spotify before retrying. ${errorMessage(error)}`);
             }
+        } catch (error) {
+            throw new Error(`Save interrupted: an empty or incomplete playlist may have been created. Check Spotify before retrying. ${errorMessage(error)}`);
         }
         return sendJson(res, 200, { url: `https://open.spotify.com/playlist/${playlist.id}` });
     }
@@ -477,7 +419,6 @@ await joinSession({
                         callbackServer.close((error) => error ? reject(error) : resolve());
                         callbackServer = null;
                         spotifyTokens = null;
-                        spotifyUserId = null;
                         pendingAuthorizations.clear();
                     });
                 }

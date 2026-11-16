@@ -7,7 +7,7 @@ local canvas for the GitHub Copilot App.
 The canvas searches setlist.fm for an artist and recent concerts, collects
 distinct songs, and lets you choose their Spotify versions. The preview groups
 tracks by album, from newest to oldest, with cover songs at the end. You can create
-a private playlist or replace an existing private playlist that you own.
+a new private playlist.
 Nothing is written to Spotify until you confirm.
 
 ## Requirements
@@ -100,7 +100,8 @@ foreach ($name in 'SETLISTFM_API_KEY', 'SPOTIFY_CLIENT_ID') {
 1. In a local Copilot App session where the extension is installed, ask:
    **“Open the Spoiler-free playlist canvas.”**
 2. Under **Source**, search for the artist and select the correct result.
-   The MusicBrainz identifier is retrieved automatically. Load the setlists;
+   The MusicBrainz identifier is retrieved automatically. Choose the **Number of
+   concerts** (1 to 25, default 5), then load the setlists;
    if coverage is incomplete, choose whether to expand the search or continue.
    Each selected concert links to setlist.fm; opening it can reveal the concert order.
 3. Under **Connect**, sign in to Spotify and grant the requested permissions.
@@ -108,19 +109,19 @@ foreach ($name in 'SETLISTFM_API_KEY', 'SPOTIFY_CLIENT_ID') {
    necessary, or exclude a song. Missing matches are highlighted. Spotify album
    artwork is shown in the version menu when available. Covers are searched by
    their original artist when known, or by title alone otherwise.
-5. Under **Preview**, review the album-sorted tracks and choose whether to
-   create a playlist or replace an owned private playlist.
-6. Under **Confirmation**, explicitly confirm the Spotify write.
+5. Under **Preview**, review the album-sorted tracks.
+6. Under **Confirmation**, optionally add today's local date (`YYYYMMDD`) to a
+   new playlist's name, then explicitly confirm the Spotify write. Choose **Start a new preparation** to
+   return to Source without writing; your Spotify connection remains available.
 
-The source uses up to five recent documented concerts, preferring the latest
-tour when it has five; otherwise it uses the most recent concerts. A version
+The source uses up to your selected number of recent documented concerts,
+preferring the latest tour when it has enough; otherwise it uses the most recent
+concerts. If fewer are available, expanding to older concerts or continuing with
+incomplete coverage requires your choice. Changing the count clears the previous
+source so you can reload it. A version
 appearing most often among this preparation's search results is preselected,
 with Spotify's first result breaking ties. Verify matches yourself: the
 original studio version cannot be guaranteed.
-
-The existing-playlist menu is ordered by the latest track addition, **not**
-playlist creation date. Empty playlists and playlists with missing addition
-dates appear last. Spotify may rate-limit this lookup.
 
 ## Privacy and troubleshooting
 
@@ -139,8 +140,8 @@ dates appear last. Spotify may rate-limit this lookup.
   process may not be inherited by an already-running app.
 - **Spotify authorization fails:** check the exact redirect URI, that port
   `43821` is free, and the development-mode Premium and user-allowlist rules.
-- **Write interrupted:** a playlist may have been created or partially
-  replaced. Check it in Spotify before retrying.
+- **Write interrupted:** an empty or incomplete playlist may have been created.
+  Check it in Spotify before retrying.
 
 For canvas details, see the
 [GitHub Copilot App canvas documentation](https://docs.github.com/en/copilot/how-tos/github-copilot-app/working-with-canvas-extensions).
