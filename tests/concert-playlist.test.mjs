@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
-import { rejectUntrustedRequest } from "../.github/extensions/concert-playlist-canvas/http-security.mjs";
-import { orderPlaylistsByLatestAddition } from "../.github/extensions/concert-playlist-canvas/playlist-activity.mjs";
-import { loadSetlistSource, searchArtists } from "../.github/extensions/concert-playlist-canvas/setlist.mjs";
+import { rejectUntrustedRequest } from "../com.github.copilot/extensions/concert-playlist-canvas/http-security.mjs";
+import { orderPlaylistsByLatestAddition } from "../com.github.copilot/extensions/concert-playlist-canvas/playlist-activity.mjs";
+import { loadSetlistSource, searchArtists } from "../com.github.copilot/extensions/concert-playlist-canvas/setlist.mjs";
 
 const artistMbid = "2b1c601f-4c4c-4654-959e-2d243a4d4eab";
 const now = new Date("2026-11-13T10:00:00Z");
@@ -44,6 +44,20 @@ function search(fetchImpl, options = {}) {
     });
 }
 
+test("plugin marketplace manifest points to the packaged canvas", async () => {
+    const plugin = JSON.parse(await readFile(new URL("../plugin.json", import.meta.url), "utf8"));
+    const marketplace = JSON.parse(await readFile(new URL("../.github/plugin/marketplace.json", import.meta.url), "utf8"));
+
+    assert.equal(plugin.name, "concert-playlist");
+    assert.equal(plugin.$schema, "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json");
+    assert.equal(marketplace.name, "concert-tools");
+    assert.equal(marketplace.plugins.length, 1);
+    assert.equal(marketplace.plugins[0].name, plugin.name);
+    assert.equal(marketplace.plugins[0].version, plugin.version);
+    assert.equal(marketplace.plugins[0].source, ".");
+    await readFile(new URL("../com.github.copilot/extensions/concert-playlist-canvas/extension.mjs", import.meta.url), "utf8");
+});
+
 test("artist search returns selectable MusicBrainz IDs and disambiguation", async () => {
     let requested;
     const fetchImpl = async (url, options) => {
@@ -69,7 +83,7 @@ test("artist search returns selectable MusicBrainz IDs and disambiguation", asyn
 });
 
 test("artist selection supplies the chosen ID and ignores stale searches", async () => {
-    const html = await readFile(new URL("../.github/extensions/concert-playlist-canvas/app.html", import.meta.url), "utf8");
+    const html = await readFile(new URL("../com.github.copilot/extensions/concert-playlist-canvas/app.html", import.meta.url), "utf8");
     assert.match(html, /<html lang="en">/);
     const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
     const elements = new Map();
@@ -182,7 +196,7 @@ test("setlist links reject missing and untrusted URLs", async () => {
 });
 
 test("source displays discreet setlist links with spoiler warnings", async () => {
-    const html = await readFile(new URL("../.github/extensions/concert-playlist-canvas/app.html", import.meta.url), "utf8");
+    const html = await readFile(new URL("../com.github.copilot/extensions/concert-playlist-canvas/app.html", import.meta.url), "utf8");
     const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
     function element(tag = "") {
         return {
@@ -315,7 +329,7 @@ test("rejects foreign origins, missing POST origins, wrong content types, and re
 });
 
 test("Spotify proposals are selected by preparation-wide frequency, with stable ties and manual choices", async () => {
-    const html = await readFile(new URL("../.github/extensions/concert-playlist-canvas/app.html", import.meta.url), "utf8");
+    const html = await readFile(new URL("../com.github.copilot/extensions/concert-playlist-canvas/app.html", import.meta.url), "utf8");
     const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
     assert.ok(script);
     const element = { addEventListener() {} };
@@ -338,7 +352,7 @@ test("Spotify proposals are selected by preparation-wide frequency, with stable 
 });
 
 test("song rows highlight missing results and reveal the search editor only on title activation", async () => {
-    const html = await readFile(new URL("../.github/extensions/concert-playlist-canvas/app.html", import.meta.url), "utf8");
+    const html = await readFile(new URL("../com.github.copilot/extensions/concert-playlist-canvas/app.html", import.meta.url), "utf8");
     const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
     assert.ok(script);
     function element() {
@@ -382,7 +396,7 @@ test("song rows highlight missing results and reveal the search editor only on t
 });
 
 test("track choices show artwork and preserve manual selection and missing-image fallback", async () => {
-    const html = await readFile(new URL("../.github/extensions/concert-playlist-canvas/app.html", import.meta.url), "utf8");
+    const html = await readFile(new URL("../com.github.copilot/extensions/concert-playlist-canvas/app.html", import.meta.url), "utf8");
     const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
     function element(tag) {
         const item = {
@@ -429,7 +443,7 @@ test("track choices show artwork and preserve manual selection and missing-image
 });
 
 test("preview shows one cover per album instead of repeating it for each track", async () => {
-    const html = await readFile(new URL("../.github/extensions/concert-playlist-canvas/app.html", import.meta.url), "utf8");
+    const html = await readFile(new URL("../com.github.copilot/extensions/concert-playlist-canvas/app.html", import.meta.url), "utf8");
     const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
     function element(tag) {
         return {
@@ -482,7 +496,7 @@ test("preview shows one cover per album instead of repeating it for each track",
 });
 
 test("editing a title searches only that query, preserves the source title and handles failures", async () => {
-    const html = await readFile(new URL("../.github/extensions/concert-playlist-canvas/app.html", import.meta.url), "utf8");
+    const html = await readFile(new URL("../com.github.copilot/extensions/concert-playlist-canvas/app.html", import.meta.url), "utf8");
     const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
     assert.ok(script);
     const element = { addEventListener() {} };
@@ -526,7 +540,7 @@ test("editing a title searches only that query, preserves the source title and h
 });
 
 test("an empty Spotify search retries without a leading article and rejects unrelated alternatives", async () => {
-    const html = await readFile(new URL("../.github/extensions/concert-playlist-canvas/app.html", import.meta.url), "utf8");
+    const html = await readFile(new URL("../com.github.copilot/extensions/concert-playlist-canvas/app.html", import.meta.url), "utf8");
     const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
     assert.ok(script);
     const element = { addEventListener() {} };
@@ -580,7 +594,7 @@ test("an empty Spotify search retries without a leading article and rejects unre
 });
 
 test("cover searches use the original artist or title alone, including article retries", async () => {
-    const html = await readFile(new URL("../.github/extensions/concert-playlist-canvas/app.html", import.meta.url), "utf8");
+    const html = await readFile(new URL("../com.github.copilot/extensions/concert-playlist-canvas/app.html", import.meta.url), "utf8");
     const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
     const element = { addEventListener() {} };
     const calls = [];
@@ -623,7 +637,7 @@ test("cover searches use the original artist or title alone, including article r
 });
 
 test("Spotify search endpoint omits the artist filter for title-only searches", async () => {
-    const extension = await readFile(new URL("../.github/extensions/concert-playlist-canvas/extension.mjs", import.meta.url), "utf8");
+    const extension = await readFile(new URL("../com.github.copilot/extensions/concert-playlist-canvas/extension.mjs", import.meta.url), "utf8");
     const start = extension.indexOf("async function routeApi(");
     const end = extension.indexOf("\nasync function startCanvasServer(", start);
     const queries = [];
@@ -708,7 +722,7 @@ test("playlist activity errors are surfaced instead of producing an incorrect or
 });
 
 test("the playlist activity endpoint returns the ordered owned playlists", async () => {
-    const extension = await readFile(new URL("../.github/extensions/concert-playlist-canvas/extension.mjs", import.meta.url), "utf8");
+    const extension = await readFile(new URL("../com.github.copilot/extensions/concert-playlist-canvas/extension.mjs", import.meta.url), "utf8");
     const start = extension.indexOf("async function routeApi(");
     const end = extension.indexOf("\nasync function startCanvasServer(", start);
     assert.ok(start >= 0 && end > start);
@@ -730,7 +744,7 @@ test("the playlist activity endpoint returns the ordered owned playlists", async
 });
 
 test("playlist sorting updates the preview without losing the target and reports errors", async () => {
-    const html = await readFile(new URL("../.github/extensions/concert-playlist-canvas/app.html", import.meta.url), "utf8");
+    const html = await readFile(new URL("../com.github.copilot/extensions/concert-playlist-canvas/app.html", import.meta.url), "utf8");
     const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
     assert.ok(script);
     function element(tag) {
@@ -804,7 +818,7 @@ test("playlist sorting updates the preview without losing the target and reports
 });
 
 test("concurrent Spotify requests share a token refresh and ignore late 401s for an old token", async () => {
-    const extension = await readFile(new URL("../.github/extensions/concert-playlist-canvas/extension.mjs", import.meta.url), "utf8");
+    const extension = await readFile(new URL("../com.github.copilot/extensions/concert-playlist-canvas/extension.mjs", import.meta.url), "utf8");
     const start = extension.indexOf("async function refreshSpotifyToken()");
     const end = extension.indexOf("\nasync function getSpotifyUser()", start);
     assert.ok(start >= 0 && end > start);

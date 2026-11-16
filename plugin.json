@@ -1,0 +1,19 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "concert-playlist",
+  "description": "Prepare spoiler-free concert playlists with setlist.fm and Spotify.",
+  "version": "0.1.0",
+  "author": {
+    "name": "bmoussaud",
+    "url": "https://github.com/bmoussaud"
+  },
+  "homepage": "https://github.com/bmoussaud/github-copilot-concert-plugin",
+  "repository": "https://github.com/bmoussaud/github-copilot-concert-plugin",
+  "keywords": [
+    "concerts",
+    "setlist.fm",
+    "spotify",
+    "playlists",
+    "canvas"
+  ]
+}
