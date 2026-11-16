@@ -1,0 +1,18 @@
+{
+  "name": "concert-tools",
+  "owner": {
+    "name": "bmoussaud"
+  },
+  "metadata": {
+    "description": "Plugins for preparing concert playlists.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "concert-playlist",
+      "description": "Prepare spoiler-free concert playlists with setlist.fm and Spotify.",
+      "version": "0.1.0",
+      "source": "."
+    }
+  ]
+}

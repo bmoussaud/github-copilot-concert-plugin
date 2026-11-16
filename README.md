@@ -1,8 +1,8 @@
-# Concert playlist canvas
+# Concert playlist plugin
 
 Prepare a private Spotify playlist for an upcoming concert without revealing
-the order in which songs were played. This is a local canvas extension for the
-GitHub Copilot App. Its current interface is in French.
+the order in which songs were played. This GitHub Copilot plugin includes a
+local canvas for the GitHub Copilot App.
 
 The canvas searches setlist.fm for an artist and recent concerts, collects
 distinct songs, and lets you choose their Spotify versions. The preview groups
@@ -24,68 +24,34 @@ Nothing is written to Spotify until you confirm.
 - Internet access and local port `43821` available for the Spotify callback.
   No Azure resources or hosting are required.
 
-## Install on another computer
+## Install from the marketplace
 
-The extension needs the **whole** `concert-playlist-canvas` directory, not just
-`extension.mjs`. It is an extension directory rather than a published marketplace
-plugin. GitHub Copilot supplies the extension SDK; no `npm install` is needed.
+The repository includes an Agent Plugins 1.0 plugin and a GitHub-hosted
+marketplace catalog. Once these files are published to the repository's default
+branch, install it in GitHub Copilot App:
 
-> A clone contains only committed files. If the repository on GitHub does not
-> yet contain `.github\extensions\concert-playlist-canvas`, copy that complete
-> directory from a working installation or publish the files before cloning.
+1. Open **Customize** and choose the marketplace settings beside the marketplace
+   selector.
+2. Add `bmoussaud/github-copilot-concert-plugin`.
+3. Browse for **concert-playlist** and select **Install**.
+4. Configure the setlist.fm and Spotify credentials below, then restart Copilot
+   App and start a new local session. Approve the extension and environment
+   variable permission if prompted.
 
-Choose one installation scope:
+The marketplace catalog is `.github/plugin/marketplace.json`; the plugin
+manifest is `plugin.json`. The canvas implementation is bundled under
+`com.github.copilot/extensions/concert-playlist-canvas`. The whole repository
+is the plugin source, so no separate hosting or `npm install` is needed.
 
-### Option A: Use it in this repository
+Copilot CLI can also install the plugin from the same marketplace:
 
-1. Obtain a copy of this repository containing the extension. Once the files
-   are published, you can clone it:
+```powershell
+copilot plugin marketplace add bmoussaud/github-copilot-concert-plugin
+copilot plugin install concert-playlist@concert-tools
+```
 
-   ```powershell
-   git clone https://github.com/bmoussaud/github-copilot-concert-plugin.git
-   ```
-
-2. In GitHub Copilot App, open the repository as a project and start a local
-   session for that checkout. Copilot discovers project extensions under
-   `.github\extensions`.
-3. Configure the API credentials below, then restart the app and start a new
-   local session. Approve the extension and environment-variable permissions
-   if prompted.
-
-The canvas is available in sessions using this repository. For other projects,
-use the user-scoped installation instead.
-
-### Option B: Use it across projects on Windows
-
-1. Copy the complete `concert-playlist-canvas` directory from a working
-   checkout to the target computer.
-2. In PowerShell, replace the example source path below with the directory you
-   copied, then run:
-
-   ```powershell
-   $source = 'C:\path\to\concert-playlist-canvas'
-   $homeDir = if ($env:COPILOT_HOME) { $env:COPILOT_HOME } else { Join-Path $HOME '.copilot' }
-   $extensions = Join-Path $homeDir 'extensions'
-   $destination = Join-Path $extensions 'concert-playlist-canvas'
-
-   if (-not (Test-Path -LiteralPath (Join-Path $source 'extension.mjs'))) {
-       throw 'The source directory does not contain extension.mjs.'
-   }
-   if (Test-Path -LiteralPath $destination) {
-       throw 'The destination already exists. Back it up or choose how to update it first.'
-   }
-   New-Item -ItemType Directory -Force -Path $extensions | Out-Null
-   Copy-Item -LiteralPath $source -Destination $destination -Recurse
-   ```
-
-3. Configure the API credentials below, restart GitHub Copilot App, and start a
-   new local session. Approve the extension and environment-variable permissions
-   if prompted.
-
-By default the installed entry file is
-`%USERPROFILE%\.copilot\extensions\concert-playlist-canvas\extension.mjs`.
-If `COPILOT_HOME` is set, its `extensions` directory is used instead. A
-project-scoped extension with the same name takes precedence over this copy.
+The canvas UI requires a canvas-capable host such as GitHub Copilot App; CLI
+installation alone does not provide a graphical canvas.
 
 ## Configure setlist.fm and Spotify
 
@@ -113,7 +79,7 @@ project-scoped extension with the same name takes precedence over this copy.
    | `SPOTIFY_CLIENT_ID` | Your Spotify application's Client ID |
 
 6. Quit GitHub Copilot App completely, reopen it, and start a new local session
-   so the extension inherits the variables. If Copilot asks permission to pass
+   so the plugin inherits the variables. If Copilot asks permission to pass
    `SETLISTFM_API_KEY` to the extension, approve it.
 
 On other platforms, make both variables available to the process launching
@@ -132,15 +98,17 @@ foreach ($name in 'SETLISTFM_API_KEY', 'SPOTIFY_CLIENT_ID') {
 ## Create a playlist
 
 1. In a local Copilot App session where the extension is installed, ask:
-   **“Open the Playlist anti-spoiler canvas.”**
+   **“Open the Spoiler-free playlist canvas.”**
 2. Under **Source**, search for the artist and select the correct result.
    The MusicBrainz identifier is retrieved automatically. Load the setlists;
    if coverage is incomplete, choose whether to expand the search or continue.
-3. Under **Connexion**, sign in to Spotify and grant the requested permissions.
-4. Under **Sélection**, check the proposed versions, edit a search title if
+   Each selected concert links to setlist.fm; opening it can reveal the concert order.
+3. Under **Connect**, sign in to Spotify and grant the requested permissions.
+4. Under **Selection**, check the proposed versions, edit a search title if
    necessary, or exclude a song. Missing matches are highlighted. Spotify album
-   artwork is shown in the version menu when available.
-5. Under **Aperçu**, review the album-sorted tracks and choose whether to
+   artwork is shown in the version menu when available. Covers are searched by
+   their original artist when known, or by title alone otherwise.
+5. Under **Preview**, review the album-sorted tracks and choose whether to
    create a playlist or replace an owned private playlist.
 6. Under **Confirmation**, explicitly confirm the Spotify write.
 
@@ -164,9 +132,8 @@ dates appear last. Spotify may rate-limit this lookup.
   process; the extension's agent action does not return their contents to
   Copilot. Artist and track searches are still sent to setlist.fm and Spotify,
   respectively, and artwork is loaded from Spotify's image service.
-- **Canvas not found:** check that the complete extension directory is in one
-  of the locations above, restart the app, and use a local session. Ask Copilot
-  to list its extensions if it still does not appear.
+- **Canvas not found:** confirm the marketplace plugin is installed and enabled,
+  restart the app, and use a local session.
 - **Missing key or Client ID:** check the user variables, approve any extension
   permission prompt, and restart the app. A variable set in a different
   process may not be inherited by an already-running app.
@@ -175,10 +142,10 @@ dates appear last. Spotify may rate-limit this lookup.
 - **Write interrupted:** a playlist may have been created or partially
   replaced. Check it in Spotify before retrying.
 
-The canvas requires a canvas-capable host such as GitHub Copilot App; the
-extension infrastructure alone does not provide a standalone CLI interface.
-For extension details, see the
+For canvas details, see the
 [GitHub Copilot App canvas documentation](https://docs.github.com/en/copilot/how-tos/github-copilot-app/working-with-canvas-extensions).
+For marketplace publishing details, see the
+[GitHub plugin marketplace documentation](https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/create-and-share-plugin-marketplaces).
 
 ## Development
 
